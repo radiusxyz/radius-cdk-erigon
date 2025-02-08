@@ -25,6 +25,7 @@ import (
 )
 
 func main() {
+	fmt.Println("start radius-cdk-erigon")
 	defer func() {
 		/*
 			panicResult := recover()
