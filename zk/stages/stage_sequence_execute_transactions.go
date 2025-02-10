@@ -2,6 +2,7 @@ package stages
 
 import (
 	"context"
+	"errors"
 
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
@@ -17,13 +18,9 @@ import (
 	"github.com/ledgerwatch/erigon/core/vm/evmtypes"
 	"github.com/ledgerwatch/erigon/zk/utils"
 	"github.com/ledgerwatch/log/v3"
-	"github.com/ledgerwatch/secp256k1"
 )
 
 func getNextPoolTransactions(ctx context.Context, cfg SequenceBlockCfg, executionAt, forkId uint64, alreadyYielded mapset.Set[[32]byte]) ([]types.Transaction, []common.Hash, bool, error) {
-	cfg.txPool.LockFlusher()
-	defer cfg.txPool.UnlockFlusher()
-
 	var ids []common.Hash
 	var transactions []types.Transaction
 	var allConditionsOk bool
@@ -57,9 +54,6 @@ func getNextPoolTransactions(ctx context.Context, cfg SequenceBlockCfg, executio
 }
 
 func getLimboTransaction(ctx context.Context, cfg SequenceBlockCfg, txHash *common.Hash, executionAt uint64) ([]types.Transaction, error) {
-	cfg.txPool.LockFlusher()
-	defer cfg.txPool.UnlockFlusher()
-
 	var transactions []types.Transaction
 	// ensure we don't spin forever looking for transactions, attempt for a while then exit up to the caller
 	if err := cfg.txPoolDb.View(ctx, func(poolTx kv.Tx) error {
@@ -89,8 +83,7 @@ func extractTransactionsFromSlot(slot *types2.TxsRlp, currentHeight uint64, cfg 
 	ids := make([]common.Hash, 0, len(slot.TxIds))
 	transactions := make([]types.Transaction, 0, len(slot.Txs))
 	toRemove := make([]common.Hash, 0)
-	signer := types.MakeSigner(cfg.chainConfig, currentHeight, 0)
-	cryptoContext := secp256k1.ContextForThread(1)
+
 	for idx, txBytes := range slot.Txs {
 		transaction, err := types.DecodeTransaction(txBytes)
 		if err == io.EOF {
@@ -106,17 +99,7 @@ func extractTransactionsFromSlot(slot *types2.TxsRlp, currentHeight uint64, cfg 
 			continue
 		}
 
-		// now attempt to recover the sender
-		sender, err := signer.SenderWithContext(cryptoContext, transaction)
-		if err != nil {
-			log.Warn("[extractTransaction] Failed to recover sender from transaction, skipping and removing from pool",
-				"error", err,
-				"hash", transaction.Hash())
-			toRemove = append(toRemove, slot.TxIds[idx])
-			continue
-		}
-
-		transaction.SetSender(sender)
+		// Recover sender later only for those transactions that are included in the block
 		transactions = append(transactions, transaction)
 		ids = append(ids, slot.TxIds[idx])
 	}
@@ -143,6 +126,7 @@ func attemptAddTransaction(
 	l1Recovery bool,
 	forkId, l1InfoIndex uint64,
 	blockDataSizeChecker *BlockDataChecker,
+	ethBlockGasPool *core.GasPool,
 ) (*types.Receipt, *core.ExecutionResult, *vm.TransactionCounter, overflowType, error) {
 	var batchDataOverflow, overflow bool
 	var err error
@@ -170,7 +154,13 @@ func attemptAddTransaction(
 		return nil, nil, txCounters, overflowCounters, nil
 	}
 
-	gasPool := new(core.GasPool).AddGas(transactionGasLimit)
+	// if not normalcy we want to create a gas pool per transaction (zkevm block gas limit is infinite), if normalcy create a pool per block.
+	var gasPool *core.GasPool
+	if !cfg.chainConfig.IsNormalcy(blockContext.BlockNumber) {
+		gasPool = new(core.GasPool).AddGas(transactionGasLimit)
+	} else {
+		gasPool = ethBlockGasPool
+	}
 
 	// set the counter collector on the config so that we can gather info during the execution
 	cfg.zkVmConfig.CounterCollector = txCounters.ExecutionCounters()
@@ -199,6 +189,10 @@ func attemptAddTransaction(
 	)
 
 	if err != nil {
+		if errors.Is(err, core.ErrGasLimitReached) {
+			log.Debug("Transaction gas limit reached", "txHash", transaction.Hash())
+			return nil, nil, txCounters, overflowGas, nil
+		}
 		return nil, nil, txCounters, overflowNone, err
 	}
 
