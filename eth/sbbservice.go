@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/iden3/go-iden3-crypto/keccak256"
 	ethereum "github.com/ledgerwatch/erigon"
 	"github.com/ledgerwatch/erigon-lib/common"
@@ -18,8 +17,6 @@ import (
 	"github.com/ledgerwatch/erigon/sbbclient"
 	"github.com/ledgerwatch/erigon/zkevm/log"
 	"math/big"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -51,7 +48,7 @@ type SbbService struct {
 func NewSbbService(ctx context.Context, blockchainService BlockchainService) (*SbbService, error) {
 	sbbClient := sbbclient.New()
 	ethClient, _ := ethclient.Dial(blockchainService.Config().PlatformUrl) // TODO: error handling
-	sequencerPrivateKey, err := NewKeyFromKeystore(blockchainService.Config().SequencerPrivateKeyKeystorePath, blockchainService.Config().SequencerPrivateKeyKeystorePassword)
+	sequencerPrivateKey, err := NewKeyFromKeystore(blockchainService.Config().SequencerPrivateKeyKeystorePassword)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -439,19 +436,12 @@ func Bytes2Hex(d []byte) string {
 	return hex.EncodeToString(d)
 }
 
-func NewKeyFromKeystore(path string, password string) (*ecdsa.PrivateKey, error) {
-	if path == "" && password == "" {
-		return nil, nil
-	}
-	keystoreEncrypted, err := os.ReadFile(filepath.Clean(path))
+func NewKeyFromKeystore(hexKey string) (*ecdsa.PrivateKey, error) {
+	key, err := crypto.HexToECDSA(hexKey)
 	if err != nil {
 		return nil, err
 	}
-	key, err := keystore.DecryptKey(keystoreEncrypted, password)
-	if err != nil {
-		return nil, err
-	}
-	return key.PrivateKey, nil
+	return key, nil
 }
 
 type JSONRPCRequest[T any] struct {
