@@ -1482,6 +1482,48 @@ var (
 		Usage: "transaction count fetched from txpool each time",
 		Value: 1000,
 	}
+
+	// SBB
+	UseTxOrderer = cli.BoolFlag{
+		Name:  "zkevm.use-tx-orderer",
+		Usage: "Does the tx orderer build the block?",
+	}
+	MaxSbbFinalizationCapacity = cli.UintFlag{
+		Name:  "zkevm.max-sbb-finalization-capacity",
+		Usage: "The number of Sbb blocks that can be pre-fetched.",
+	}
+	RollupId = cli.StringFlag{
+		Name:  "zkevm.rollup-id",
+		Usage: "The rollupId required when using txOrderer.",
+	}
+	PlatformUrl = cli.StringFlag{
+		Name:  "zkevm.platform-url",
+		Usage: "The PlatformUrl required when using txOrderer.",
+	}
+	LivenessContractAddress = cli.StringFlag{
+		Name:  "zkevm.liveness-contract-address",
+		Usage: "The LivenessContractAddress required when using txOrderer.",
+	}
+	ServiceType = cli.StringFlag{
+		Name:  "zkevm.service-type",
+		Usage: "The ServiceType required when using txOrderer.",
+	}
+	ClusterId = cli.StringFlag{
+		Name:  "zkevm.cluster-id",
+		Usage: "The ClusterId required when using txOrderer.",
+	}
+	SeedNodeUrl = cli.StringFlag{
+		Name:  "zkevm.seed-node-url",
+		Usage: "The SeedNodeUrl required when using txOrderer.",
+	}
+	SequencerPrivateKeyKeystorePath = cli.StringFlag{
+		Name:  "zkevm.sequencer-private-key-keystore-path",
+		Usage: "The SequencerPrivateKeyKeystorePath required when using txOrderer.",
+	}
+	SequencerPrivateKeyKeystorePassword = cli.StringFlag{
+		Name:  "zkevm.sequencer-private-key-keystore-password",
+		Usage: "The SequencerPrivateKeyKeystorePassword required when using txOrderer.",
+	}
 )
 
 var MetricFlags = []cli.Flag{&MetricsEnabledFlag, &MetricsHTTPFlag, &MetricsPortFlag, &DiagDisabledFlag, &DiagEndpointAddrFlag, &DiagEndpointPortFlag, &DiagSpeedTestFlag}

@@ -33,6 +33,7 @@ func SequencerZkStages(
 	txLookup stages.TxLookupCfg,
 	finish stages.FinishCfg,
 	test bool,
+	blockCreationCh chan struct{},
 ) []*stages.Stage {
 	return []*stages.Stage{
 		{
@@ -94,7 +95,7 @@ func SequencerZkStages(
 			ID:          stages2.Execution,
 			Description: "Sequence transactions",
 			Forward: func(firstCycle bool, badBlockUnwind bool, s *stages.StageState, u stages.Unwinder, txc wrap.TxContainer, logger log.Logger) error {
-				sequencerErr := SpawnSequencingStage(s, u, ctx, exec, history, false)
+				sequencerErr := SpawnSequencingStage(s, u, ctx, exec, history, false, blockCreationCh)
 				if sequencerErr != nil || u.IsUnwindSet() {
 					exec.legacyVerifier.CancelAllRequests()
 					// on the begining of next iteration the EXECUTION will be aligned to DS

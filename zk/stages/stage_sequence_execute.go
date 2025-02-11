@@ -29,6 +29,7 @@ func SpawnSequencingStage(
 	cfg SequenceBlockCfg,
 	historyCfg stagedsync.HistoryCfg,
 	quiet bool,
+	blockCreationCh chan struct{},
 ) (err error) {
 	roTx, err := cfg.db.BeginRo(ctx)
 	if err != nil {
@@ -56,7 +57,7 @@ func SpawnSequencingStage(
 		return nil
 	}
 
-	return sequencingBatchStep(s, u, ctx, cfg, historyCfg, nil)
+	return sequencingBatchStep(s, u, ctx, cfg, historyCfg, nil, blockCreationCh)
 }
 
 func sequencingBatchStep(
@@ -66,6 +67,7 @@ func sequencingBatchStep(
 	cfg SequenceBlockCfg,
 	historyCfg stagedsync.HistoryCfg,
 	resequenceBatchJob *ResequenceBatchJob,
+	blockCreationCh chan struct{},
 ) (err error) {
 	logPrefix := s.LogPrefix()
 	log.Info(fmt.Sprintf("[%s] Starting sequencing stage", logPrefix))
@@ -343,7 +345,7 @@ func sequencingBatchStep(
 			}
 
 			select {
-			case <-blockTimer.C:
+			case <-blockCreationCh:
 				if !batchState.isAnyRecovery() {
 					break OuterLoopTransactions
 				}

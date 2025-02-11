@@ -102,6 +102,19 @@ type Zk struct {
 	WitnessCacheLimit              uint64
 	WitnessContractInclusion       []common.Address
 	BadTxAllowance                 uint64
+
+	// SBB
+	UseTxOrderer                        bool
+	MaxSbbFinalizationCapacity          int
+	RollupId                            string
+	Platform                            string
+	PlatformUrl                         string
+	LivenessContractAddress             string
+	ServiceType                         string
+	ClusterId                           string
+	SeedNodeUrl                         string
+	SequencerPrivateKeyKeystorePath     string
+	SequencerPrivateKeyKeystorePassword string
 }
 
 var DefaultZkConfig = &Zk{}

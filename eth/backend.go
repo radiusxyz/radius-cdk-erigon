@@ -237,6 +237,9 @@ type Ethereum struct {
 
 	polygonSyncService polygonsync.Service
 	stopNode           func() error
+
+	sbbService      *SbbService
+	blockCreationCh chan struct{}
 }
 
 func splitAddrIntoHostAndPort(addr string) (host string, port int, err error) {
@@ -1166,6 +1169,14 @@ func New(ctx context.Context, stack *node.Node, config *ethconfig.Config, logger
 				cfg.L1HighestBlockType,
 			)
 
+			if config.UseTxOrderer {
+				backend.blockCreationCh = make(chan struct{})
+				backend.sbbService, err = NewSbbService(ctx, backend)
+				if err != nil {
+					return nil, err
+				}
+			}
+
 			backend.syncStages = stages2.NewSequencerZkStages(
 				backend.sentryCtx,
 				backend.chainDB,
@@ -1185,6 +1196,7 @@ func New(ctx context.Context, stack *node.Node, config *ethconfig.Config, logger
 				backend.txPool2DB,
 				verifier,
 				l1InfoTreeUpdater,
+				backend.blockCreationCh,
 			)
 
 			backend.syncUnwindOrder = zkStages.ZkSequencerUnwindOrder
@@ -1916,6 +1928,7 @@ func (s *Ethereum) Start() error {
 	// 	}
 	// }
 
+	s.sbbService.Start()
 	return nil
 }
 
@@ -2015,6 +2028,10 @@ func (s *Ethereum) ExecutionModule() *eth1.EthereumExecutionModule {
 	return s.eth1ExecutionServer
 }
 
+func (s *Ethereum) Config() *ethconfig.Config {
+	return s.config
+}
+
 // RemoveContents is like os.RemoveAll, but preserve dir itself
 func RemoveContents(dirname string) error {
 	d, err := os.Open(dirname)
@@ -2073,6 +2090,32 @@ func (s *Ethereum) Sentinel() rpcsentinel.SentinelClient {
 
 func (s *Ethereum) DataDir() string {
 	return s.config.Dirs.DataDir
+}
+
+func (s *Ethereum) GetBlockNumber() (*uint64, error) {
+	var latestBlock *uint64
+	err := s.chainDB.View(context.Background(), func(tx kv.Tx) error {
+		latestBlock = rawdb.ReadCurrentBlockNumber(tx)
+		return nil
+	})
+	if err != nil {
+		log.Error("Failed to read latest block", "error", err)
+		return nil, err
+	}
+	return latestBlock, nil
+}
+
+func (s *Ethereum) BlockCreationCh() chan struct{} {
+	return s.blockCreationCh
+}
+
+func (s *Ethereum) SubmitRawTransactions(ctx context.Context, encodedTxs [][]byte) error {
+	txPoolClient := direct.NewTxPoolClient(s.txPool2GrpcServer)
+	_, err := txPoolClient.Add(ctx, &txpoolproto.AddRequest{RlpTxs: encodedTxs})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // setBorDefaultMinerGasPrice enforces Miner.GasPrice to be equal to BorDefaultMinerGasPrice (30gwei by default)
