@@ -53,7 +53,7 @@ type SbbService struct {
 func NewSbbService(ctx context.Context, blockchainService BlockchainService) (*SbbService, error) {
 	sbbClient := sbbclient.New()
 	ethClient, _ := ethclient.Dial(blockchainService.Config().PlatformUrl) // TODO: error handling
-	sequencerPrivateKey, err := NewKeyFromKeystore(blockchainService.Config().SequencerPrivateKeyKeystorePassword)
+	sequencerPrivateKey, err := NewPrivateKeyFromHexKey(blockchainService.Config().SequencerPrivateKey)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -449,7 +449,7 @@ func Bytes2Hex(d []byte) string {
 	return hex.EncodeToString(d)
 }
 
-func NewKeyFromKeystore(hexKey string) (*ecdsa.PrivateKey, error) {
+func NewPrivateKeyFromHexKey(hexKey string) (*ecdsa.PrivateKey, error) {
 	key, err := crypto.HexToECDSA(hexKey)
 	if err != nil {
 		return nil, err
