@@ -156,8 +156,7 @@ func (s *SbbService) requestToSbb() {
 			} else {
 				nextActionDelay = time.Duration(0)
 			}
-
-			time.Sleep(nextActionDelay * time.Millisecond)
+			timer.Reset(nextActionDelay)
 		case <-s.sbbCtx.Done():
 			return
 		}
