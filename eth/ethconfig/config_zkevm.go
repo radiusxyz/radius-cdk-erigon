@@ -104,17 +104,16 @@ type Zk struct {
 	BadTxAllowance                 uint64
 
 	// SBB
-	UseTxOrderer                        bool
-	MaxSbbFinalizationCapacity          int
-	RollupId                            string
-	Platform                            string
-	PlatformUrl                         string
-	LivenessContractAddress             string
-	ServiceType                         string
-	ClusterId                           string
-	SeedNodeUrl                         string
-	SequencerPrivateKeyKeystorePath     string
-	SequencerPrivateKeyKeystorePassword string
+	UseTxOrderer               bool
+	MaxSbbFinalizationCapacity int
+	RollupId                   string
+	Platform                   string
+	PlatformUrl                string
+	LivenessContractAddress    string
+	ServiceType                string
+	ClusterId                  string
+	SeedNodeUrl                string
+	SequencerPrivateKey        string
 }
 
 var DefaultZkConfig = &Zk{}

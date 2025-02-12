@@ -236,16 +236,15 @@ func ApplyFlagsForZkConfig(ctx *cli.Context, cfg *ethconfig.Config) {
 		BadTxAllowance:                         ctx.Uint64(utils.BadTxAllowance.Name),
 
 		// SBB
-		UseTxOrderer:                        ctx.Bool(utils.UseTxOrderer.Name),
-		MaxSbbFinalizationCapacity:          ctx.Int(utils.MaxSbbFinalizationCapacity.Name),
-		RollupId:                            ctx.String(utils.RollupId.Name),
-		PlatformUrl:                         ctx.String(utils.PlatformUrl.Name),
-		LivenessContractAddress:             ctx.String(utils.LivenessContractAddress.Name),
-		ServiceType:                         ctx.String(utils.ServiceType.Name),
-		ClusterId:                           ctx.String(utils.ClusterId.Name),
-		SeedNodeUrl:                         ctx.String(utils.SeedNodeUrl.Name),
-		SequencerPrivateKeyKeystorePath:     ctx.String(utils.SequencerPrivateKeyKeystorePath.Name),
-		SequencerPrivateKeyKeystorePassword: ctx.String(utils.SequencerPrivateKeyKeystorePassword.Name),
+		UseTxOrderer:               ctx.Bool(utils.UseTxOrderer.Name),
+		MaxSbbFinalizationCapacity: ctx.Int(utils.MaxSbbFinalizationCapacity.Name),
+		RollupId:                   ctx.String(utils.RollupId.Name),
+		PlatformUrl:                ctx.String(utils.PlatformUrl.Name),
+		LivenessContractAddress:    ctx.String(utils.LivenessContractAddress.Name),
+		ServiceType:                ctx.String(utils.ServiceType.Name),
+		ClusterId:                  ctx.String(utils.ClusterId.Name),
+		SeedNodeUrl:                ctx.String(utils.SeedNodeUrl.Name),
+		SequencerPrivateKey:        ctx.String(utils.SequencerPrivateKey.Name),
 	}
 
 	utils2.EnableTimer(cfg.DebugTimers)

@@ -1516,13 +1516,9 @@ var (
 		Name:  "zkevm.seed-node-url",
 		Usage: "The SeedNodeUrl required when using txOrderer.",
 	}
-	SequencerPrivateKeyKeystorePath = cli.StringFlag{
-		Name:  "zkevm.sequencer-private-key-keystore-path",
-		Usage: "The SequencerPrivateKeyKeystorePath required when using txOrderer.",
-	}
-	SequencerPrivateKeyKeystorePassword = cli.StringFlag{
-		Name:  "zkevm.sequencer-private-key-keystore-password",
-		Usage: "The SequencerPrivateKeyKeystorePassword required when using txOrderer.",
+	SequencerPrivateKey = cli.StringFlag{
+		Name:  "zkevm.sequencer-private-key",
+		Usage: "The SequencerPrivateKey required when using txOrderer.",
 	}
 )
 
