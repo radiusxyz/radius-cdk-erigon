@@ -48,7 +48,7 @@ func SpawnSequencingStage(
 	}
 
 	if lastBatch < highestBatchInDs {
-		return resequence(s, u, ctx, cfg, historyCfg, lastBatch, highestBatchInDs)
+		return resequence(s, u, ctx, cfg, historyCfg, lastBatch, highestBatchInDs, blockCreationCh)
 	}
 
 	if cfg.zk.SequencerResequence {
@@ -344,12 +344,22 @@ func sequencingBatchStep(
 			default:
 			}
 
-			select {
-			case <-blockCreationCh:
-				if !batchState.isAnyRecovery() {
-					break OuterLoopTransactions
+			if blockCreationCh == nil {
+				select {
+				case <-blockTimer.C:
+					if !batchState.isAnyRecovery() {
+						break OuterLoopTransactions
+					}
+				default:
 				}
-			default:
+			} else {
+				select {
+				case <-blockCreationCh:
+					if !batchState.isAnyRecovery() {
+						break OuterLoopTransactions
+					}
+				default:
+				}
 			}
 
 			select {

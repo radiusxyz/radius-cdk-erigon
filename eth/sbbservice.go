@@ -36,12 +36,17 @@ type BlockchainService interface {
 	Config() *ethconfig.Config
 }
 
+type BlockTransactions struct {
+	blockNumber  uint64
+	transactions [][]byte
+}
+
 type SbbService struct {
 	sbbClient           *sbbclient.SbbClient
 	ethClient           *ethclient.Client
 	blockchainService   BlockchainService
 	sequencerPrivateKey *ecdsa.PrivateKey
-	blockTransactionsCh chan [][]byte
+	blockTransactionsCh chan *BlockTransactions
 	sbbCtx              context.Context
 }
 
@@ -57,7 +62,7 @@ func NewSbbService(ctx context.Context, blockchainService BlockchainService) (*S
 		ethClient:           ethClient,
 		blockchainService:   blockchainService,
 		sequencerPrivateKey: sequencerPrivateKey,
-		blockTransactionsCh: make(chan [][]byte, blockchainService.Config().MaxSbbFinalizationCapacity),
+		blockTransactionsCh: make(chan *BlockTransactions, blockchainService.Config().MaxSbbFinalizationCapacity),
 		sbbCtx:              ctx,
 	}, nil
 }
@@ -71,7 +76,15 @@ func (s *SbbService) executeSbbBlockTransactions() {
 	for {
 		select {
 		case blockTransactions := <-s.blockTransactionsCh:
-			if err := s.blockchainService.SubmitRawTransactions(s.sbbCtx, blockTransactions); err != nil {
+			log.Info("SBB block transactions execution started.")
+			currentBlockNumber, err := s.blockchainService.GetBlockNumber()
+			if err != nil {
+				panic("youngmin - currentBlock" + err.Error())
+			}
+			for blockTransactions.blockNumber != *currentBlockNumber+1 {
+				time.Sleep(100 * time.Millisecond)
+			}
+			if err = s.blockchainService.SubmitRawTransactions(s.sbbCtx, blockTransactions.transactions); err != nil {
 				panic("youngmin - SubmitRawTransactions" + err.Error())
 			}
 			s.blockchainService.BlockCreationCh() <- struct{}{}
@@ -127,11 +140,11 @@ func (s *SbbService) requestToSbb() {
 			time.Sleep(300 * time.Millisecond)
 
 			Retry(s.sbbCtx, func() error {
-				txs, err := s.getRawTransactions(s.sbbCtx, finalizingBlockNumber, sequencerRpcUrls, leaderSequencerIndex)
+				transactions, err := s.getRawTransactions(s.sbbCtx, finalizingBlockNumber, sequencerRpcUrls, leaderSequencerIndex)
 				if err != nil {
 					return err
 				}
-				s.blockTransactionsCh <- txs
+				s.blockTransactionsCh <- &BlockTransactions{blockNumber: finalizingBlockNumber, transactions: transactions}
 				return nil
 			}, 100*time.Millisecond)
 

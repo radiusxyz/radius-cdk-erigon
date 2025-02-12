@@ -1928,7 +1928,9 @@ func (s *Ethereum) Start() error {
 	// 	}
 	// }
 
-	s.sbbService.Start()
+	if s.sbbService != nil {
+		s.sbbService.Start()
+	}
 	return nil
 }
 
