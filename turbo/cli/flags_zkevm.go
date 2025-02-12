@@ -239,6 +239,7 @@ func ApplyFlagsForZkConfig(ctx *cli.Context, cfg *ethconfig.Config) {
 		UseTxOrderer:               ctx.Bool(utils.UseTxOrderer.Name),
 		MaxSbbFinalizationCapacity: ctx.Int(utils.MaxSbbFinalizationCapacity.Name),
 		RollupId:                   ctx.String(utils.RollupId.Name),
+		Platform:                   ctx.String(utils.Platform.Name),
 		PlatformUrl:                ctx.String(utils.PlatformUrl.Name),
 		LivenessContractAddress:    ctx.String(utils.LivenessContractAddress.Name),
 		ServiceType:                ctx.String(utils.ServiceType.Name),

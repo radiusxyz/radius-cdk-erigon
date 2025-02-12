@@ -301,4 +301,13 @@ var DefaultFlags = []cli.Flag{
 	&utils.BadTxAllowance,
 
 	&utils.UseTxOrderer,
+	&utils.MaxSbbFinalizationCapacity,
+	&utils.RollupId,
+	&utils.Platform,
+	&utils.PlatformUrl,
+	&utils.LivenessContractAddress,
+	&utils.ServiceType,
+	&utils.ClusterId,
+	&utils.SeedNodeUrl,
+	&utils.SequencerPrivateKey,
 }
