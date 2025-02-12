@@ -129,8 +129,8 @@ func (s *SbbService) requestToSbb() {
 			validSequencerAddresses, sequencerRpcUrls, leaderSequencerIndex, err = s.fetchSequencerInfo(s.sbbCtx, requestPlatformBlockNumber, finalizingBlockNumber)
 			if err != nil {
 				log.Errorf("failed to fetch sequencer info, error: %v", err)
-				time.Sleep(100 * time.Millisecond)
-				continue
+				timer.Reset(100 * time.Millisecond)
+				break
 			}
 
 			log.Debug("Successfully updated sequencer info")
@@ -138,8 +138,8 @@ func (s *SbbService) requestToSbb() {
 			err = s.finalizeBlock(s.sbbCtx, requestPlatformBlockNumber, finalizingBlockNumber, sequencerRpcUrls, leaderSequencerIndex, validSequencerAddresses)
 			if err != nil {
 				log.Errorf("failed to finalize block, error: %v", err)
-				time.Sleep(100 * time.Millisecond)
-				continue
+				timer.Reset(100 * time.Millisecond)
+				break
 			}
 
 			time.Sleep(300 * time.Millisecond)
