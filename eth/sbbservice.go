@@ -102,8 +102,9 @@ func (s *SbbService) requestToSbb() {
 	if err != nil {
 		panic(err.Error())
 	}
-	if *blockNumber == 1 {
-		*blockNumber = 2
+	fmt.Println("youngmin - ablockNumber: ", *blockNumber)
+	if *blockNumber == 0 {
+		*blockNumber = 1
 	}
 	finalizedBlockNumber := *blockNumber
 
