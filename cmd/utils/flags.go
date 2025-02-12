@@ -1487,6 +1487,7 @@ var (
 	UseTxOrderer = cli.BoolFlag{
 		Name:  "zkevm.use-tx-orderer",
 		Usage: "Does the tx orderer build the block?",
+		Value: false,
 	}
 	MaxSbbFinalizationCapacity = cli.UintFlag{
 		Name:  "zkevm.max-sbb-finalization-capacity",

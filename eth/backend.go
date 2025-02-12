@@ -1169,6 +1169,7 @@ func New(ctx context.Context, stack *node.Node, config *ethconfig.Config, logger
 				cfg.L1HighestBlockType,
 			)
 
+			fmt.Println("youngmin - useTxOrderer: ", config.UseTxOrderer)
 			if config.UseTxOrderer {
 				backend.blockCreationCh = make(chan struct{})
 				backend.sbbService, err = NewSbbService(ctx, backend)

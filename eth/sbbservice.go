@@ -4,10 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"github.com/iden3/go-iden3-crypto/keccak256"
 	ethereum "github.com/ledgerwatch/erigon"
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon/accounts/abi"
@@ -68,6 +65,7 @@ func NewSbbService(ctx context.Context, blockchainService BlockchainService) (*S
 }
 
 func (s *SbbService) Start() {
+	log.Info("Starting sbb service...")
 	go s.requestToSbb()
 	go s.executeSbbBlockTransactions()
 }
@@ -315,112 +313,114 @@ func (s *SbbService) increaseLeaderSequencerIndex(sequencerCount uint64, leaderS
 
 func (s *SbbService) finalizeBlock(ctx context.Context, platformBlockNumber uint64, finalizeBlockNumber uint64, sequencerRpcUrls []string, leaderSequencerIndex *uint64, sequencerAddresses []string) error {
 
-	sequencerCount := len(sequencerRpcUrls)
-
-	for i := 0; i < sequencerCount; i++ {
-		nextSequencerIndex, err := s.getNextLeaderSequencerIndex(uint64(sequencerCount), *leaderSequencerIndex)
-		if err != nil {
-			return err
-		}
-
-		message := FinalizeBlockMessageParams{
-			RollupId:                s.blockchainService.Config().RollupId,
-			PlatformBlockHeight:     platformBlockNumber,
-			RollupBlockHeight:       finalizeBlockNumber,
-			BlockCreatorAddress:     strings.ToLower(sequencerAddresses[*leaderSequencerIndex]),
-			NextBlockCreatorAddress: strings.ToLower(sequencerAddresses[*nextSequencerIndex]),
-		}
-
-		messageBytes, err := json.Marshal(message)
-		if err != nil {
-			log.Error("Error converting message to bytes: %v", err)
-			return err
-		}
-
-		h := keccak256.Hash(messageBytes)
-
-		signature, err := crypto.Sign(h, s.sequencerPrivateKey)
-		if err != nil {
-			log.Error("Error signing message: %v", err)
-			return err
-		}
-
-		params := FinalizeBlockParams{
-			Message:   message,
-			Signature: "0x" + Bytes2Hex(signature),
-		}
-
-		log.Debug("Finalizing the contents to be included in the block", "block number: ", finalizeBlockNumber)
-
-		body := newJsonRpcRequest(FinalizeBlock, params)
-
-		reqCtx, reqCancel := context.WithTimeout(ctx, 2*time.Second)
-		defer reqCancel()
-
-		if err = s.sbbClient.Send(reqCtx, sequencerRpcUrls[*leaderSequencerIndex], body, nil); err != nil {
-			if !strings.Contains(err.Error(), "connection refused") {
-				return fmt.Errorf("failed to send finalize_block request to SBB: %s request params: platformHeight %d rollupHeight %d url %s now %d", err.Error(), message.PlatformBlockHeight, message.RollupBlockHeight, sequencerRpcUrls[*leaderSequencerIndex], time.Now().UnixMilli())
-			}
-
-			log.Warn("failed to finalizing due to no sequencer found. retrying with a different sequencer")
-
-			if err = s.increaseLeaderSequencerIndex(uint64(sequencerCount), leaderSequencerIndex); err != nil {
-				return err
-			}
-
-			log.Debug("stopesi - Error", err)
-
-			continue
-		}
-
-		log.Debug("Successfully finalized the contents to be included in the block. ", "block number: ", finalizeBlockNumber, " now: ", time.Now().UnixMilli())
-
-		return nil
-	}
-
-	return errors.New("no sequencer")
+	//sequencerCount := len(sequencerRpcUrls)
+	//
+	//for i := 0; i < sequencerCount; i++ {
+	//	nextSequencerIndex, err := s.getNextLeaderSequencerIndex(uint64(sequencerCount), *leaderSequencerIndex)
+	//	if err != nil {
+	//		return err
+	//	}
+	//
+	//	message := FinalizeBlockMessageParams{
+	//		RollupId:                s.blockchainService.Config().RollupId,
+	//		PlatformBlockHeight:     platformBlockNumber,
+	//		RollupBlockHeight:       finalizeBlockNumber,
+	//		BlockCreatorAddress:     strings.ToLower(sequencerAddresses[*leaderSequencerIndex]),
+	//		NextBlockCreatorAddress: strings.ToLower(sequencerAddresses[*nextSequencerIndex]),
+	//	}
+	//
+	//	messageBytes, err := json.Marshal(message)
+	//	if err != nil {
+	//		log.Error("Error converting message to bytes: %v", err)
+	//		return err
+	//	}
+	//
+	//	h := keccak256.Hash(messageBytes)
+	//
+	//	signature, err := crypto.Sign(h, s.sequencerPrivateKey)
+	//	if err != nil {
+	//		log.Error("Error signing message: %v", err)
+	//		return err
+	//	}
+	//
+	//	params := FinalizeBlockParams{
+	//		Message:   message,
+	//		Signature: "0x" + Bytes2Hex(signature),
+	//	}
+	//
+	//	log.Debug("Finalizing the contents to be included in the block", "block number: ", finalizeBlockNumber)
+	//
+	//	body := newJsonRpcRequest(FinalizeBlock, params)
+	//
+	//	reqCtx, reqCancel := context.WithTimeout(ctx, 2*time.Second)
+	//	defer reqCancel()
+	//
+	//	if err = s.sbbClient.Send(reqCtx, sequencerRpcUrls[*leaderSequencerIndex], body, nil); err != nil {
+	//		if !strings.Contains(err.Error(), "connection refused") {
+	//			return fmt.Errorf("failed to send finalize_block request to SBB: %s request params: platformHeight %d rollupHeight %d url %s now %d", err.Error(), message.PlatformBlockHeight, message.RollupBlockHeight, sequencerRpcUrls[*leaderSequencerIndex], time.Now().UnixMilli())
+	//		}
+	//
+	//		log.Warn("failed to finalizing due to no sequencer found. retrying with a different sequencer")
+	//
+	//		if err = s.increaseLeaderSequencerIndex(uint64(sequencerCount), leaderSequencerIndex); err != nil {
+	//			return err
+	//		}
+	//
+	//		log.Debug("stopesi - Error", err)
+	//
+	//		continue
+	//	}
+	//
+	//	log.Debug("Successfully finalized the contents to be included in the block. ", "block number: ", finalizeBlockNumber, " now: ", time.Now().UnixMilli())
+	//
+	//	return nil
+	//}
+	//
+	//return errors.New("no sequencer")
+	return nil
 }
 
 func (s *SbbService) getRawTransactions(ctx context.Context, finalizedBlockNumber uint64, sequencerRpcUrls []string, leaderSequencerIndex *uint64) ([][]byte, error) {
-	reqCtx, reqCancel := context.WithTimeout(ctx, 2*time.Second)
-	defer reqCancel()
-
-	params := GetRawTransactionsParams{
-		RollupId:          s.blockchainService.Config().RollupId,
-		RollupBlockHeight: finalizedBlockNumber,
-	}
-
-	body := newJsonRpcRequest(GetRawTransactionList, params)
-
-	res := &GetRawTransactionsResponse{}
-	sequencerCount := len(sequencerRpcUrls)
-
-	for i := 0; i < sequencerCount; i++ {
-		if err := s.sbbClient.Send(reqCtx, sequencerRpcUrls[*leaderSequencerIndex], body, res); err != nil {
-			if !strings.Contains(err.Error(), "connection refused") {
-				return nil, fmt.Errorf("failed to send get_raw_transaction_list request to SBB: %s height %d url %s now %d", err.Error(), params.RollupBlockHeight, sequencerRpcUrls[*leaderSequencerIndex], time.Now().UnixMilli())
-			}
-
-			log.Warn("failed to get raw transactions due to no sequencer found. retrying with a different sequencer")
-
-			if err = s.increaseLeaderSequencerIndex(uint64(sequencerCount), leaderSequencerIndex); err != nil {
-				return nil, err
-			}
-			continue
-		}
-
-		var encodedTxs [][]byte
-
-		for _, hexStr := range res.RawTransactions {
-			binary, err := hex.DecodeString(hexStr)
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode transaction: %w", err)
-			}
-			encodedTxs = append(encodedTxs, binary)
-		}
-		return encodedTxs, nil
-	}
-	return nil, errors.New("no sequencer")
+	//reqCtx, reqCancel := context.WithTimeout(ctx, 2*time.Second)
+	//defer reqCancel()
+	//
+	//params := GetRawTransactionsParams{
+	//	RollupId:          s.blockchainService.Config().RollupId,
+	//	RollupBlockHeight: finalizedBlockNumber,
+	//}
+	//
+	//body := newJsonRpcRequest(GetRawTransactionList, params)
+	//
+	//res := &GetRawTransactionsResponse{}
+	//sequencerCount := len(sequencerRpcUrls)
+	//
+	//for i := 0; i < sequencerCount; i++ {
+	//	if err := s.sbbClient.Send(reqCtx, sequencerRpcUrls[*leaderSequencerIndex], body, res); err != nil {
+	//		if !strings.Contains(err.Error(), "connection refused") {
+	//			return nil, fmt.Errorf("failed to send get_raw_transaction_list request to SBB: %s height %d url %s now %d", err.Error(), params.RollupBlockHeight, sequencerRpcUrls[*leaderSequencerIndex], time.Now().UnixMilli())
+	//		}
+	//
+	//		log.Warn("failed to get raw transactions due to no sequencer found. retrying with a different sequencer")
+	//
+	//		if err = s.increaseLeaderSequencerIndex(uint64(sequencerCount), leaderSequencerIndex); err != nil {
+	//			return nil, err
+	//		}
+	//		continue
+	//	}
+	//
+	//	var encodedTxs [][]byte
+	//
+	//	for _, hexStr := range res.RawTransactions {
+	//		binary, err := hex.DecodeString(hexStr)
+	//		if err != nil {
+	//			return nil, fmt.Errorf("failed to decode transaction: %w", err)
+	//		}
+	//		encodedTxs = append(encodedTxs, binary)
+	//	}
+	//	return encodedTxs, nil
+	//}
+	//return nil, errors.New("no sequencer")
+	return [][]byte{}, nil
 }
 
 func Retry(ctx context.Context, fn func() error, retryInterval time.Duration) {
