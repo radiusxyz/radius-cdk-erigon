@@ -102,6 +102,9 @@ func (s *SbbService) requestToSbb() {
 	if err != nil {
 		panic(err.Error())
 	}
+	if *blockNumber == 1 {
+		*blockNumber = 2
+	}
 	finalizedBlockNumber := *blockNumber
 
 	var platformBlockNumber *uint64
