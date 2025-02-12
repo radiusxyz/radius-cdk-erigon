@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	ethereum "github.com/ledgerwatch/erigon"
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon/accounts/abi"
@@ -79,12 +80,14 @@ func (s *SbbService) executeSbbBlockTransactions() {
 			if err != nil {
 				panic("youngmin - currentBlock" + err.Error())
 			}
+			fmt.Println("youngmin - blockTransactions.blockNumber: ", blockTransactions.blockNumber, " currentBlockNumber: ", *currentBlockNumber)
 			for blockTransactions.blockNumber != *currentBlockNumber+1 {
 				time.Sleep(100 * time.Millisecond)
 			}
 			if err = s.blockchainService.SubmitRawTransactions(s.sbbCtx, blockTransactions.transactions); err != nil {
 				panic("youngmin - SubmitRawTransactions" + err.Error())
 			}
+			log.Info("SBB block transactions execution finished.")
 			s.blockchainService.BlockCreationCh() <- struct{}{}
 		case <-s.sbbCtx.Done():
 			return
