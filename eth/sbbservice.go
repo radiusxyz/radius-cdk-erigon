@@ -333,9 +333,24 @@ func (s *SbbService) finalizeBlock(ctx context.Context, platformBlockNumber uint
 			return err
 		}
 
+		address := "0xE34aaF64b29273B7D567FCFc40544c014EEe9970"
+
+		// "0x" 제거
+		address = strings.TrimPrefix(address, "0x")
+
+		// Hex 문자열을 바이트 배열로 변환
+		addressBytes, err := hex.DecodeString(address)
+		if err != nil {
+			log.Fatal("❌ 변환 실패:", err)
+		}
+
+		// 바이트 배열을 [20]byte로 변환
+		var addressFixed [20]byte
+		copy(addressFixed[:], addressBytes)
+
 		message := FinalizeBlockMessageParams{
 			RollupId:                s.blockchainService.Config().RollupId,
-			ExecutorAddress:         "0xE34aaF64b29273B7D567FCFc40544c014EEe9970",
+			ExecutorAddress:         addressBytes,
 			PlatformBlockHeight:     platformBlockNumber,
 			RollupBlockHeight:       finalizeBlockNumber,
 			BlockCreatorAddress:     strings.ToLower(sequencerAddresses[*leaderSequencerIndex]),
@@ -500,7 +515,7 @@ type GetSequencerRpcUrlsResponse struct {
 
 type FinalizeBlockMessageParams struct {
 	RollupId        string `json:"rollup_id"`
-	ExecutorAddress string `json:"executor_address"`
+	ExecutorAddress []byte `json:"executor_address"`
 
 	PlatformBlockHeight uint64 `json:"platform_block_height"`
 	RollupBlockHeight   uint64 `json:"rollup_block_height"`
