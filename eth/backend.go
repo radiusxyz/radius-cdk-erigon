@@ -2096,16 +2096,32 @@ func (s *Ethereum) DataDir() string {
 }
 
 func (s *Ethereum) GetBlockNumber() (*uint64, error) {
+
 	var latestBlock *uint64
 	err := s.chainDB.View(context.Background(), func(tx kv.Tx) error {
-		latestBlock = rawdb.ReadCurrentBlockNumber(tx)
+		ss, err := s.stagedSync.StageState(stages.Execution, tx, s.chainDB)
+		num, err := ss.ExecutionAt(tx)
+		if err != nil {
+			return err
+		}
+		latestBlock = &num
 		return nil
 	})
 	if err != nil {
-		log.Error("Failed to read latest block", "error", err)
 		return nil, err
 	}
 	return latestBlock, nil
+
+	//var latestBlock *uint64
+	//err := s.chainDB.View(context.Background(), func(tx kv.Tx) error {
+	//	latestBlock = rawdb.ReadCurrentBlockNumber(tx)
+	//	return nil
+	//})
+	//if err != nil {
+	//	log.Error("Failed to read latest block", "error", err)
+	//	return nil, err
+	//}
+	//return latestBlock, nil
 }
 
 func (s *Ethereum) BlockCreationCh() chan struct{} {
