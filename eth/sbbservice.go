@@ -171,42 +171,43 @@ func (s *SbbService) requestToSbb() {
 }
 
 func (s *SbbService) fetchPlatformBlockNumber(ctx context.Context) (*uint64, error) {
-	reqCtx, reqCancel := context.WithTimeout(ctx, 2*time.Second) // TODO: configuration
-	defer reqCancel()
-
-	platformBlockNumber, err := s.ethClient.BlockNumber(reqCtx)
-	if err != nil {
-		log.Error("failed to fetch platform block number", "error", err.Error())
-		return nil, err
-	}
-
+	//reqCtx, reqCancel := context.WithTimeout(ctx, 2*time.Second) // TODO: configuration
+	//defer reqCancel()
+	//
+	//platformBlockNumber, err := s.ethClient.BlockNumber(reqCtx)
+	//if err != nil {
+	//	log.Error("failed to fetch platform block number", "error", err.Error())
+	//	return nil, err
+	//}
+	platformBlockNumber := uint64(5)
 	return &platformBlockNumber, nil
 }
 
 func (s *SbbService) fetchSequencerInfo(ctx context.Context, platformBlockNumber uint64, finalizeBlockNumber uint64) ([]string, []string, *uint64, error) {
-	sequencerAddresses, err := s.fetchSequencerAddresses(ctx, platformBlockNumber)
-	if err != nil {
-		log.Error("failed to fetch sequencer addresses ", "error ", err.Error())
-		return nil, nil, nil, err
-	}
+	//sequencerAddresses, err := s.fetchSequencerAddresses(ctx, platformBlockNumber)
+	//if err != nil {
+	//	log.Error("failed to fetch sequencer addresses ", "error ", err.Error())
+	//	return nil, nil, nil, err
+	//}
+	//
+	//validSequencerAddresses, sequencerRpcUrls, err := s.fetchSequencerRpcUrls(ctx, sequencerAddresses)
+	//if err != nil {
+	//	log.Error("failed to fetch sequencer rpc urls ", "error ", err.Error())
+	//	return nil, nil, nil, err
+	//}
+	//
+	//log.Debug("Successfully fetched sequencer info", " sequencerAddresses: ", sequencerAddresses, " sequencerRpcUrls: ", sequencerRpcUrls)
+	//
+	//leaderSequencerIndex, err := s.getLeaderSequencerIndex(finalizeBlockNumber, sequencerRpcUrls)
+	//if err != nil {
+	//	log.Error("failed to get leader sequencer index ", "error ", err.Error())
+	//	return nil, nil, nil, err
+	//}
+	//
+	//log.Debug("Successfully fetched leader sequencer index", " leaderSequencerIndex: ", *leaderSequencerIndex)
 
-	validSequencerAddresses, sequencerRpcUrls, err := s.fetchSequencerRpcUrls(ctx, sequencerAddresses)
-	if err != nil {
-		log.Error("failed to fetch sequencer rpc urls ", "error ", err.Error())
-		return nil, nil, nil, err
-	}
-
-	log.Debug("Successfully fetched sequencer info", " sequencerAddresses: ", sequencerAddresses, " sequencerRpcUrls: ", sequencerRpcUrls)
-
-	leaderSequencerIndex, err := s.getLeaderSequencerIndex(finalizeBlockNumber, sequencerRpcUrls)
-	if err != nil {
-		log.Error("failed to get leader sequencer index ", "error ", err.Error())
-		return nil, nil, nil, err
-	}
-
-	log.Debug("Successfully fetched leader sequencer index", " leaderSequencerIndex: ", *leaderSequencerIndex)
-
-	return validSequencerAddresses, sequencerRpcUrls, leaderSequencerIndex, nil
+	//return validSequencerAddresses, sequencerRpcUrls, leaderSequencerIndex, nil
+	return []string{""}, []string{""}, nil, nil
 }
 
 func (s *SbbService) getLeaderSequencerIndex(finalizeBlockNumber uint64, sequencerRpcUrls []string) (*uint64, error) {
