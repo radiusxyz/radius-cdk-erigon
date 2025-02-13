@@ -333,13 +333,18 @@ func (s *SbbService) finalizeBlock(ctx context.Context, platformBlockNumber uint
 			return err
 		}
 
+		executorAddressBytes, err := hex.DecodeString("0xE34aaF64b29273B7D567FCFc40544c014EEe9970")
+		if err != nil {
+			return err
+		}
+
 		message := FinalizeBlockMessageParams{
 			RollupId:                s.blockchainService.Config().RollupId,
 			PlatformBlockHeight:     platformBlockNumber,
 			RollupBlockHeight:       finalizeBlockNumber,
 			BlockCreatorAddress:     strings.ToLower(sequencerAddresses[*leaderSequencerIndex]),
 			NextBlockCreatorAddress: strings.ToLower(sequencerAddresses[*nextSequencerIndex]),
-			ExecutorAddress:         "0xE34aaF64b29273B7D567FCFc40544c014EEe9970",
+			ExecutorAddress:         executorAddressBytes,
 		}
 
 		messageBytes, err := json.Marshal(message)
@@ -500,7 +505,7 @@ type GetSequencerRpcUrlsResponse struct {
 
 type FinalizeBlockMessageParams struct {
 	RollupId        string `json:"rollup_id"`
-	ExecutorAddress string `json:"executor_address"`
+	ExecutorAddress []byte `json:"executor_address"`
 
 	PlatformBlockHeight uint64 `json:"platform_block_height"`
 	RollupBlockHeight   uint64 `json:"rollup_block_height"`
