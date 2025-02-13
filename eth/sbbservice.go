@@ -335,11 +335,11 @@ func (s *SbbService) finalizeBlock(ctx context.Context, platformBlockNumber uint
 
 		message := FinalizeBlockMessageParams{
 			RollupId:                s.blockchainService.Config().RollupId,
+			ExecutorAddress:         "0xE34aaF64b29273B7D567FCFc40544c014EEe9970",
 			PlatformBlockHeight:     platformBlockNumber,
 			RollupBlockHeight:       finalizeBlockNumber,
 			BlockCreatorAddress:     strings.ToLower(sequencerAddresses[*leaderSequencerIndex]),
 			NextBlockCreatorAddress: strings.ToLower(sequencerAddresses[*nextSequencerIndex]),
-			ExecutorAddress:         "0xe34aaf64b29273b7d567fcfc40544c014eee9970",
 		}
 
 		messageBytes, err := json.Marshal(message)
