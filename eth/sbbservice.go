@@ -338,6 +338,7 @@ func (s *SbbService) finalizeBlock(ctx context.Context, platformBlockNumber uint
 			RollupBlockHeight:       finalizeBlockNumber,
 			BlockCreatorAddress:     strings.ToLower(sequencerAddresses[*leaderSequencerIndex]),
 			NextBlockCreatorAddress: strings.ToLower(sequencerAddresses[*nextSequencerIndex]),
+			ExecutorAddress:         common.Address([]byte("0xE34aaF64b29273B7D567FCFc40544c014EEe9970")),
 		}
 
 		messageBytes, err := json.Marshal(message)
