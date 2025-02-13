@@ -17,6 +17,8 @@ import (
 	"github.com/ledgerwatch/erigon/sbbclient"
 	"github.com/ledgerwatch/erigon/zkevm/log"
 	"math/big"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -323,9 +325,29 @@ func (s *SbbService) increaseLeaderSequencerIndex(sequencerCount uint64, leaderS
 	return nil
 }
 
+func LoadSequencerKey() (*ecdsa.PrivateKey, error) {
+	projectRoot, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	keystorePath := filepath.Join(projectRoot, "keystore", "sequencer.keystore")
+
+	if _, err := os.Stat(keystorePath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("keystore file not found: %s", keystorePath)
+	}
+
+	key, err := crypto.LoadECDSA(keystorePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load ECDSA key: %w", err)
+	}
+
+	return key, nil
+}
+
 func (s *SbbService) finalizeBlock(ctx context.Context, platformBlockNumber uint64, finalizeBlockNumber uint64, sequencerRpcUrls []string, leaderSequencerIndex *uint64, sequencerAddresses []string) error {
 
-	key, err := crypto.LoadECDSA("keystore/sequencer.keystore")
+	key, err := LoadSequencerKey()
 	if err != nil {
 		return err
 	}
