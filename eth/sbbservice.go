@@ -54,6 +54,7 @@ func NewSbbService(ctx context.Context, blockchainService BlockchainService) (*S
 	sbbClient := sbbclient.New()
 	ethClient, _ := ethclient.Dial(blockchainService.Config().PlatformUrl) // TODO: error handling
 	sequencerPrivateKey, err := NewPrivateKeyFromHexKey(blockchainService.Config().SequencerPrivateKey)
+	fmt.Println("youngmin - sequencerPrivateKey: ", sequencerPrivateKey)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -359,7 +360,7 @@ func (s *SbbService) finalizeBlock(ctx context.Context, platformBlockNumber uint
 			Message:   message,
 			Signature: "0x" + Bytes2Hex(signature),
 		}
-
+		fmt.Println("youngmin - params: ", params.Signature)
 		log.Debug("Finalizing the contents to be included in the block", "block number: ", finalizeBlockNumber)
 
 		body := newJsonRpcRequest(FinalizeBlock, params)
