@@ -325,6 +325,11 @@ func (s *SbbService) increaseLeaderSequencerIndex(sequencerCount uint64, leaderS
 
 func (s *SbbService) finalizeBlock(ctx context.Context, platformBlockNumber uint64, finalizeBlockNumber uint64, sequencerRpcUrls []string, leaderSequencerIndex *uint64, sequencerAddresses []string) error {
 
+	key, err := crypto.LoadECDSA("keystore/sequencer.keystore")
+	if err != nil {
+		return err
+	}
+
 	sequencerCount := len(sequencerRpcUrls)
 
 	for i := 0; i < sequencerCount; i++ {
@@ -335,7 +340,7 @@ func (s *SbbService) finalizeBlock(ctx context.Context, platformBlockNumber uint
 
 		message := FinalizeBlockMessageParams{
 			RollupId:                s.blockchainService.Config().RollupId,
-			ExecutorAddress:         "E34aaF64b29273B7D567FCFc40544c014EEe9970",
+			ExecutorAddress:         "f39fd6e51aad88f6f4ce6ab8827279cfffb92266",
 			PlatformBlockHeight:     platformBlockNumber,
 			RollupBlockHeight:       finalizeBlockNumber,
 			BlockCreatorAddress:     strings.ToLower(sequencerAddresses[*leaderSequencerIndex]),
@@ -350,7 +355,7 @@ func (s *SbbService) finalizeBlock(ctx context.Context, platformBlockNumber uint
 
 		h := keccak256.Hash(messageBytes)
 
-		signature, err := crypto.Sign(h, s.sequencerPrivateKey)
+		signature, err := crypto.Sign(h, key)
 		if err != nil {
 			log.Error("Error signing message: %v", err)
 			return err
