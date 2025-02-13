@@ -83,6 +83,10 @@ func (s *SbbService) executeSbbBlockTransactions() {
 			fmt.Println("youngmin - blockTransactions.blockNumber: ", blockTransactions.blockNumber, " currentBlockNumber: ", *currentBlockNumber)
 			for blockTransactions.blockNumber != *currentBlockNumber+1 {
 				time.Sleep(100 * time.Millisecond)
+				currentBlockNumber, err = s.blockchainService.GetBlockNumber()
+				if err != nil {
+					panic("youngmin - currentBlock2" + err.Error())
+				}
 			}
 			if err = s.blockchainService.SubmitRawTransactions(s.sbbCtx, blockTransactions.transactions); err != nil {
 				panic("youngmin - SubmitRawTransactions" + err.Error())
