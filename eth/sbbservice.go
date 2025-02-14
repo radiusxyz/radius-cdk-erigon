@@ -84,7 +84,7 @@ func (s *SbbService) executeSbbBlockTransactions() {
 				panic("youngmin - currentBlock" + err.Error())
 			}
 			fmt.Println("youngmin - blockTransactions.blockNumber: ", blockTransactions.blockNumber, " currentBlockNumber: ", *currentBlockNumber)
-			for blockTransactions.blockNumber != *currentBlockNumber+1 {
+			for blockTransactions.blockNumber != *currentBlockNumber+2 {
 				time.Sleep(100 * time.Millisecond)
 				currentBlockNumber, err = s.blockchainService.GetBlockNumber()
 				if err != nil {
@@ -113,7 +113,7 @@ func (s *SbbService) requestToSbb() {
 	if *blockNumber == 0 {
 		*blockNumber = 1
 	}
-	finalizedBlockNumber := *blockNumber
+	finalizedBlockNumber := *blockNumber + 1
 
 	var platformBlockNumber *uint64
 	var validSequencerAddresses []string
