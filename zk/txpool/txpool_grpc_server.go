@@ -231,13 +231,14 @@ func (s *GrpcServer) Add(ctx context.Context, in *txpool_proto.AddRequest) (*txp
 	}
 
 	j = 0
-	for i := range reply.Imported {
+	count := math.Min(float64(len(discardReasons)), float64(len(reply.Imported)))
+	for i := 0; i < int(count); i++ {
 		if reply.Imported[i] != txpool_proto.ImportResult_SUCCESS {
 			j++
 			fmt.Println("stompesi - case 1")
 			continue
 		} else {
-			fmt.Println("stompesi - case 1")
+			fmt.Println("stompesi - case 2")
 		}
 
 		reply.Imported[i] = mapDiscardReasonToProto(discardReasons[j])
