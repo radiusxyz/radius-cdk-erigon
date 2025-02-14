@@ -17,8 +17,6 @@ import (
 	"github.com/ledgerwatch/erigon/sbbclient"
 	"github.com/ledgerwatch/erigon/zkevm/log"
 	"math/big"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -325,32 +323,7 @@ func (s *SbbService) increaseLeaderSequencerIndex(sequencerCount uint64, leaderS
 	return nil
 }
 
-func LoadSequencerKey() (*ecdsa.PrivateKey, error) {
-	projectRoot, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get working directory: %w", err)
-	}
-
-	keystorePath := filepath.Join(projectRoot, "keystore", "sequencer.keystore")
-
-	if _, err := os.Stat(keystorePath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("keystore file not found: %s", keystorePath)
-	}
-
-	key, err := crypto.LoadECDSA(keystorePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load ECDSA key: %w", err)
-	}
-
-	return key, nil
-}
-
 func (s *SbbService) finalizeBlock(ctx context.Context, platformBlockNumber uint64, finalizeBlockNumber uint64, sequencerRpcUrls []string, leaderSequencerIndex *uint64, sequencerAddresses []string) error {
-
-	key, err := LoadSequencerKey()
-	if err != nil {
-		return err
-	}
 
 	sequencerCount := len(sequencerRpcUrls)
 
@@ -362,7 +335,7 @@ func (s *SbbService) finalizeBlock(ctx context.Context, platformBlockNumber uint
 
 		message := FinalizeBlockMessageParams{
 			RollupId:                s.blockchainService.Config().RollupId,
-			ExecutorAddress:         "f39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+			ExecutorAddress:         "0xE34aaF64b29273B7D567FCFc40544c014EEe9970",
 			PlatformBlockHeight:     platformBlockNumber,
 			RollupBlockHeight:       finalizeBlockNumber,
 			BlockCreatorAddress:     strings.ToLower(sequencerAddresses[*leaderSequencerIndex]),
@@ -377,7 +350,7 @@ func (s *SbbService) finalizeBlock(ctx context.Context, platformBlockNumber uint
 
 		h := keccak256.Hash(messageBytes)
 
-		signature, err := crypto.Sign(h, key)
+		signature, err := crypto.Sign(h, s.sequencerPrivateKey)
 		if err != nil {
 			log.Error("Error signing message: %v", err)
 			return err
