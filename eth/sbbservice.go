@@ -154,6 +154,7 @@ func (s *SbbService) requestToSbb() {
 			Retry(s.sbbCtx, func() error {
 				transactions, err := s.getRawTransactions(s.sbbCtx, finalizingBlockNumber, sequencerRpcUrls, leaderSequencerIndex)
 				if err != nil {
+					log.Errorf("failed to get raw transactions, error: %v", err)
 					return err
 				}
 				s.blockTransactionsCh <- &BlockTransactions{blockNumber: finalizingBlockNumber, transactions: transactions}
@@ -429,6 +430,9 @@ func (s *SbbService) getRawTransactions(ctx context.Context, finalizedBlockNumbe
 			}
 			encodedTxs = append(encodedTxs, binary)
 		}
+
+		log.Info("Transaction processing succeeded.", "tx count: ", len(encodedTxs), " block num: ", finalizedBlockNumber, " now: ", time.Now().UnixMilli())
+
 		return encodedTxs, nil
 	}
 	return nil, errors.New("no sequencer")
