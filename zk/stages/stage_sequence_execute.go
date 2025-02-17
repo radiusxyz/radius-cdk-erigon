@@ -344,23 +344,32 @@ func sequencingBatchStep(
 			default:
 			}
 
-			if blockCreationCh == nil {
-				select {
-				case <-blockTimer.C:
-					if !batchState.isAnyRecovery() {
-						break OuterLoopTransactions
-					}
-				default:
+			//if blockCreationCh == nil {
+			//	select {
+			//	case <-blockTimer.C:
+			//		if !batchState.isAnyRecovery() {
+			//			break OuterLoopTransactions
+			//		}
+			//	default:
+			//	}
+			//} else {
+			//	select {
+			//	case <-blockCreationCh:
+			//		log.Info("youngmin - blockCreationCh")
+			//		if !batchState.isAnyRecovery() {
+			//			break OuterLoopTransactions
+			//		}
+			//	default:
+			//	}
+			//}
+
+			select {
+			case <-blockTimer.C:
+				log.Info("youngmin - blockTimer.C")
+				if !batchState.isAnyRecovery() {
+					break OuterLoopTransactions
 				}
-			} else {
-				select {
-				case <-blockCreationCh:
-					log.Info("youngmin - blockCreationCh")
-					if !batchState.isAnyRecovery() {
-						break OuterLoopTransactions
-					}
-				default:
-				}
+			default:
 			}
 
 			select {
@@ -426,16 +435,14 @@ func sequencingBatchStep(
 
 		InnerLoopTransactions:
 			for i, transaction := range batchState.blockState.transactionsForInclusion {
-				if blockCreationCh == nil {
-					// quick check if we should stop handling transactions
-					select {
-					case <-blockTimer.C:
-						if !batchState.isAnyRecovery() {
-							innerBreak = true
-							break InnerLoopTransactions
-						}
-					default:
+				// quick check if we should stop handling transactions
+				select {
+				case <-blockTimer.C:
+					if !batchState.isAnyRecovery() {
+						innerBreak = true
+						break InnerLoopTransactions
 					}
+				default:
 				}
 
 				txHash := transaction.Hash()
