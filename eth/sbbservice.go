@@ -95,7 +95,7 @@ func (s *SbbService) executeSbbBlockTransactions() {
 				panic("youngmin - SubmitRawTransactions" + err.Error())
 			}
 			log.Info("SBB block transactions execution finished.")
-			s.blockchainService.BlockCreationCh() <- struct{}{}
+			//s.blockchainService.BlockCreationCh() <- struct{}{}
 		case <-s.sbbCtx.Done():
 			return
 		}
