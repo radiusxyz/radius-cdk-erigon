@@ -234,7 +234,7 @@ func (s *GrpcServer) Add(ctx context.Context, in *txpool_proto.AddRequest) (*txp
 	count := math.Min(float64(len(discardReasons)), float64(len(reply.Imported)))
 	for i := 0; i < int(count); i++ {
 		if reply.Imported[i] != txpool_proto.ImportResult_SUCCESS {
-			j++
+			//j++ // 이게 삭제돼야되고
 			fmt.Println("stompesi - case 1")
 			continue
 		} else {
