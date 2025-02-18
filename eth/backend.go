@@ -771,6 +771,7 @@ func New(ctx context.Context, stack *node.Node, config *ethconfig.Config, logger
 	defer tx.Rollback()
 
 	if !config.DeprecatedTxPool.Disable {
+		log.Info("youngmin - config.DeprecatedTxPool.Disable")
 		// we need to start the pool before stage loop itself
 		// the pool holds the info about how execution stage should work - as regular or as limbo recovery
 		if err := backend.txPool2.StartIfNotStarted(ctx, backend.txPool2DB, tx); err != nil {
