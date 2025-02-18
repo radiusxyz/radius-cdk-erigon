@@ -49,7 +49,6 @@ import (
 	"github.com/ledgerwatch/erigon-lib/common/dbg"
 	"github.com/ledgerwatch/erigon-lib/common/fixedgas"
 	emath "github.com/ledgerwatch/erigon-lib/common/math"
-	"github.com/ledgerwatch/erigon-lib/common/u256"
 	"github.com/ledgerwatch/erigon-lib/gointerfaces"
 	"github.com/ledgerwatch/erigon-lib/gointerfaces/grpcutil"
 	"github.com/ledgerwatch/erigon-lib/gointerfaces/remote"
@@ -477,7 +476,8 @@ func (p *TxPool) OnNewBlock(ctx context.Context, stateChanges *remote.StateChang
 
 	//log.Debug("[txpool] new block", "unwinded", len(unwindTxs.txs), "mined", len(minedTxs.txs), "baseFee", baseFee, "blockHeight", blockHeight)
 
-	announcements, err := p.addTxsOnNewBlock(
+	// Removed announcements
+	_, err = p.addTxsOnNewBlock(
 		blockNum,
 		cacheView,
 		stateChanges,
@@ -498,23 +498,23 @@ func (p *TxPool) OnNewBlock(ctx context.Context, stateChanges *remote.StateChang
 		return err
 	}
 
-	p.pending.EnforceWorstInvariants()
-	p.baseFee.EnforceInvariants()
-	p.queued.EnforceInvariants()
-	p.pending.EnforceBestInvariants()
-	p.promoted.Reset()
-	p.promoted.AppendOther(announcements)
+	//p.pending.EnforceWorstInvariants()
+	//p.baseFee.EnforceInvariants()
+	//p.queued.EnforceInvariants()
+	//p.pending.EnforceBestInvariants()
+	//p.promoted.Reset()
+	//p.promoted.AppendOther(announcements)
 
 	if p.started.CompareAndSwap(false, true) {
 		log.Info("[txpool] Started")
 	}
 
-	if p.promoted.Len() > 0 {
-		select {
-		case p.newPendingTxs <- p.promoted.Copy():
-		default:
-		}
-	}
+	//if p.promoted.Len() > 0 {
+	//	select {
+	//	case p.newPendingTxs <- p.promoted.Copy():
+	//	default:
+	//	}
+	//}
 
 	for idx, slot := range forDiscard.Txs {
 		mt := newMetaTx(slot, forDiscard.IsLocal[idx], blockNum)
@@ -965,7 +965,8 @@ func (p *TxPool) AddLocalTxs(ctx context.Context, newTransactions types.TxSlots,
 		return nil, err
 	}
 
-	announcements, addReasons, err := p.addTxs(p.lastSeenBlock.Load(), cacheView, p.senders, newTxs,
+	// Removed announcements
+	_, addReasons, err := p.addTxs(p.lastSeenBlock.Load(), cacheView, p.senders, newTxs,
 		p.pendingBaseFee.Load(), p.blockGasLimit.Load(), p.pending, p.baseFee, p.queued, p.all, p.byHash, p.addLocked, p.discardLocked, true)
 	if err == nil {
 		for i, reason := range addReasons {
@@ -977,7 +978,7 @@ func (p *TxPool) AddLocalTxs(ctx context.Context, newTransactions types.TxSlots,
 		return nil, err
 	}
 	p.promoted.Reset()
-	p.promoted.AppendOther(announcements)
+	//p.promoted.AppendOther(announcements)
 
 	reasons = fillDiscardReasons(reasons, newTxs, p.discardReasonsLRU)
 	for i, reason := range reasons {
@@ -986,15 +987,15 @@ func (p *TxPool) AddLocalTxs(ctx context.Context, newTransactions types.TxSlots,
 			if txn.Traced {
 				log.Info(fmt.Sprintf("TX TRACING: AddLocalTxs promotes idHash=%x, senderId=%d", txn.IDHash, txn.SenderID))
 			}
-			p.promoted.Append(txn.Type, txn.Size, txn.IDHash[:])
+			//p.promoted.Append(txn.Type, txn.Size, txn.IDHash[:])
 		}
 	}
-	if p.promoted.Len() > 0 {
-		select {
-		case p.newPendingTxs <- p.promoted.Copy():
-		default:
-		}
-	}
+	//if p.promoted.Len() > 0 {
+	//	select {
+	//	case p.newPendingTxs <- p.promoted.Copy():
+	//	default:
+	//	}
+	//}
 	return reasons, nil
 }
 
@@ -1066,7 +1067,7 @@ func (p *TxPool) addTxs(blockNum uint64, cacheView kvcache.CacheView, senders *s
 			protocolBaseFee, blockGasLimit, pending, baseFee, queued, discard)
 	}
 
-	promote(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
+	//promote(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
 
 	return announcements, discardReasons, nil
 }
@@ -1181,45 +1182,46 @@ func (p *TxPool) addLocked(mt *metaTx, announcements *types.Announcements) Disca
 	// Insert to pending pool, if pool doesn't have txn with same Nonce and bigger Tip
 	found := p.all.get(mt.Tx.SenderID, mt.Tx.Nonce)
 	if found != nil {
-		tipThreshold := uint256.NewInt(0)
-		tipThreshold = tipThreshold.Mul(&found.Tx.Tip, uint256.NewInt(100+p.cfg.PriceBump))
-		tipThreshold.Div(tipThreshold, u256.N100)
-		feecapThreshold := uint256.NewInt(0)
-		feecapThreshold.Mul(&found.Tx.FeeCap, uint256.NewInt(100+p.cfg.PriceBump))
-		feecapThreshold.Div(feecapThreshold, u256.N100)
-		if mt.Tx.Tip.Cmp(tipThreshold) < 0 || mt.Tx.FeeCap.Cmp(feecapThreshold) < 0 {
-			// Both tip and feecap need to be larger than previously to replace the transaction
-			// In case if the transation is stuck, "poke" it to rebroadcast
-			if mt.subPool&IsLocal != 0 && (found.currentSubPool == PendingSubPool || found.currentSubPool == BaseFeeSubPool) {
-				announcements.Append(found.Tx.Type, found.Tx.Size, found.Tx.IDHash[:])
-			}
-			if bytes.Equal(found.Tx.IDHash[:], mt.Tx.IDHash[:]) {
-				return NotSet
-			}
-			log.Info(fmt.Sprintf("Transaction %s was attempted to be replaced.", hex.EncodeToString(mt.Tx.IDHash[:])))
-			return NotReplaced
-		}
-
-		// Log nonce issue
-		log.Info("Transaction is to be replaced",
-			"account", p.senders.senderID2Addr[mt.Tx.SenderID],
-			"oldTxHash", hex.EncodeToString(found.Tx.IDHash[:]),
-			"newTxHash", hex.EncodeToString(mt.Tx.IDHash[:]),
-			"nonce", mt.Tx.Nonce,
-		)
-
-		switch found.currentSubPool {
-		case PendingSubPool:
-			p.pending.Remove(found)
-		case BaseFeeSubPool:
-			p.baseFee.Remove(found)
-		case QueuedSubPool:
-			p.queued.Remove(found)
-		default:
-			//already removed
-		}
-
-		p.discardLocked(found, ReplacedByHigherTip)
+		return AlreadyKnown
+		//tipThreshold := uint256.NewInt(0)
+		//tipThreshold = tipThreshold.Mul(&found.Tx.Tip, uint256.NewInt(100+p.cfg.PriceBump))
+		//tipThreshold.Div(tipThreshold, u256.N100)
+		//feecapThreshold := uint256.NewInt(0)
+		//feecapThreshold.Mul(&found.Tx.FeeCap, uint256.NewInt(100+p.cfg.PriceBump))
+		//feecapThreshold.Div(feecapThreshold, u256.N100)
+		//if mt.Tx.Tip.Cmp(tipThreshold) < 0 || mt.Tx.FeeCap.Cmp(feecapThreshold) < 0 {
+		//	// Both tip and feecap need to be larger than previously to replace the transaction
+		//	// In case if the transation is stuck, "poke" it to rebroadcast
+		//	if mt.subPool&IsLocal != 0 && (found.currentSubPool == PendingSubPool || found.currentSubPool == BaseFeeSubPool) {
+		//		announcements.Append(found.Tx.Type, found.Tx.Size, found.Tx.IDHash[:])
+		//	}
+		//	if bytes.Equal(found.Tx.IDHash[:], mt.Tx.IDHash[:]) {
+		//		return NotSet
+		//	}
+		//	log.Info(fmt.Sprintf("Transaction %s was attempted to be replaced.", hex.EncodeToString(mt.Tx.IDHash[:])))
+		//	return NotReplaced
+		//}
+		//
+		//// Log nonce issue
+		//log.Info("Transaction is to be replaced",
+		//	"account", p.senders.senderID2Addr[mt.Tx.SenderID],
+		//	"oldTxHash", hex.EncodeToString(found.Tx.IDHash[:]),
+		//	"newTxHash", hex.EncodeToString(mt.Tx.IDHash[:]),
+		//	"nonce", mt.Tx.Nonce,
+		//)
+		//
+		//switch found.currentSubPool {
+		//case PendingSubPool:
+		//	p.pending.Remove(found)
+		//case BaseFeeSubPool:
+		//	p.baseFee.Remove(found)
+		//case QueuedSubPool:
+		//	p.queued.Remove(found)
+		//default:
+		//	//already removed
+		//}
+		//
+		//p.discardLocked(found, ReplacedByHigherTip)
 	} else if p.pending.IsFull() {
 		// new transaction will be denied if pending pool is full unless it will replace an old transaction
 		return PendingPoolOverflow
@@ -1233,11 +1235,12 @@ func (p *TxPool) addLocked(mt *metaTx, announcements *types.Announcements) Disca
 		}
 	}
 
-	if mt.subPool&IsLocal != 0 {
-		p.isLocalLRU.Add(string(mt.Tx.IDHash[:]), struct{}{})
-	}
+	//if mt.subPool&IsLocal != 0 {
+	//	p.isLocalLRU.Add(string(mt.Tx.IDHash[:]), struct{}{})
+	//}
 	// All transactions are first added to the queued pool and then immediately promoted from there if required
-	p.queued.Add(mt)
+	//p.queued.Add(mt)
+	p.pending.Add(mt)
 	return NotSet
 }
 
