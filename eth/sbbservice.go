@@ -71,27 +71,27 @@ func NewSbbService(ctx context.Context, blockchainService BlockchainService) (*S
 func (s *SbbService) Start() {
 	log.Info("Starting sbb service...")
 	go s.requestToSbb()
-	go s.executeSbbBlockTransactions()
+	go s.insertTransactions()
 }
 
-func (s *SbbService) executeSbbBlockTransactions() {
+func (s *SbbService) insertTransactions() {
 	for {
 		select {
 		case blockTransactions := <-s.blockTransactionsCh:
 			log.Info("SBB block transactions execution started.")
-			currentBlockNumber, err := s.blockchainService.GetBlockNumber()
-			if err != nil {
-				panic("youngmin - currentBlock" + err.Error())
-			}
-			fmt.Println("youngmin - blockTransactions.blockNumber: ", blockTransactions.blockNumber, " currentBlockNumber: ", *currentBlockNumber)
-			for blockTransactions.blockNumber != *currentBlockNumber+2 {
-				time.Sleep(100 * time.Millisecond)
-				currentBlockNumber, err = s.blockchainService.GetBlockNumber()
-				if err != nil {
-					panic("youngmin - currentBlock2" + err.Error())
-				}
-			}
-			if err = s.blockchainService.SubmitRawTransactions(s.sbbCtx, blockTransactions.transactions); err != nil {
+			//currentBlockNumber, err := s.blockchainService.GetBlockNumber()
+			//if err != nil {
+			//	panic("youngmin - currentBlock" + err.Error())
+			//}
+			//fmt.Println("youngmin - blockTransactions.blockNumber: ", blockTransactions.blockNumber, " currentBlockNumber: ", *currentBlockNumber)
+			//for blockTransactions.blockNumber != *currentBlockNumber+2 {
+			//	time.Sleep(100 * time.Millisecond)
+			//	currentBlockNumber, err = s.blockchainService.GetBlockNumber()
+			//	if err != nil {
+			//		panic("youngmin - currentBlock2" + err.Error())
+			//	}
+			//}
+			if err := s.blockchainService.SubmitRawTransactions(s.sbbCtx, blockTransactions.transactions); err != nil {
 				panic("youngmin - SubmitRawTransactions" + err.Error())
 			}
 			log.Info("SBB block transactions execution finished.")
