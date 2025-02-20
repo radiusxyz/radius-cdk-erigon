@@ -71,10 +71,10 @@ func NewSbbService(ctx context.Context, blockchainService BlockchainService) (*S
 func (s *SbbService) Start() {
 	log.Info("Starting sbb service...")
 	go s.requestToSbb()
-	go s.executeSbbBlockTransactions()
+	go s.insertTransactions()
 }
 
-func (s *SbbService) executeSbbBlockTransactions() {
+func (s *SbbService) insertTransactions() {
 	for {
 		select {
 		case blockTransactions := <-s.blockTransactionsCh:

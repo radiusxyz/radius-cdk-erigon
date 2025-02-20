@@ -2383,8 +2383,8 @@ type BestQueue struct {
 
 func (mt *metaTx) better(than *metaTx, pendingBaseFee uint256.Int) bool {
 
-	if mt.timestamp != than.timestamp {
-		return mt.timestamp < than.timestamp
+	if mt.created != than.created {
+		return mt.created < than.created
 	}
 	return mt.seq < than.seq
 
@@ -2451,8 +2451,8 @@ func (mt *metaTx) better(than *metaTx, pendingBaseFee uint256.Int) bool {
 
 func (mt *metaTx) worse(than *metaTx, pendingBaseFee uint256.Int) bool {
 
-	if mt.timestamp != than.timestamp {
-		return mt.timestamp > than.timestamp
+	if mt.created != than.created {
+		return mt.created > than.created
 	}
 	return mt.seq > than.seq
 
