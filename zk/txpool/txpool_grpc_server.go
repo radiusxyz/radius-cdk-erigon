@@ -230,9 +230,11 @@ func (s *GrpcServer) Add(ctx context.Context, in *txpool_proto.AddRequest) (*txp
 		return nil, err
 	}
 
+	fmt.Println("youngmin - total: ", len(reply.Imported), " discard count: ", len(discardReasons))
 	j = 0
-	count := math.Min(float64(len(discardReasons)), float64(len(reply.Imported)))
-	for i := 0; i < int(count); i++ {
+	//count := math.Min(float64(len(discardReasons)), float64(len(reply.Imported)))
+	//for i := 0; i < int(count); i++ {
+	for i := range reply.Imported {
 		if reply.Imported[i] != txpool_proto.ImportResult_SUCCESS {
 			//j++ // 이게 삭제돼야되고
 			fmt.Println("stompesi - case 1")

@@ -24,6 +24,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/ledgerwatch/erigon-lib/common/u256"
 	"math"
 	"math/big"
 	"runtime"
@@ -1184,46 +1185,49 @@ func (p *TxPool) addLocked(mt *metaTx, announcements *types.Announcements) Disca
 	// Insert to pending pool, if pool doesn't have txn with same Nonce and bigger Tip
 	found := p.all.get(mt.Tx.SenderID, mt.Tx.Nonce)
 	if found != nil {
-		//tipThreshold := uint256.NewInt(0)
-		//tipThreshold = tipThreshold.Mul(&found.Tx.Tip, uint256.NewInt(100+p.cfg.PriceBump))
-		//tipThreshold.Div(tipThreshold, u256.N100)
-		//feecapThreshold := uint256.NewInt(0)
-		//feecapThreshold.Mul(&found.Tx.FeeCap, uint256.NewInt(100+p.cfg.PriceBump))
-		//feecapThreshold.Div(feecapThreshold, u256.N100)
-		//if mt.Tx.Tip.Cmp(tipThreshold) < 0 || mt.Tx.FeeCap.Cmp(feecapThreshold) < 0 {
-		//	// Both tip and feecap need to be larger than previously to replace the transaction
-		//	// In case if the transation is stuck, "poke" it to rebroadcast
-		//	if mt.subPool&IsLocal != 0 && (found.currentSubPool == PendingSubPool || found.currentSubPool == BaseFeeSubPool) {
-		//		announcements.Append(found.Tx.Type, found.Tx.Size, found.Tx.IDHash[:])
-		//	}
-		//	if bytes.Equal(found.Tx.IDHash[:], mt.Tx.IDHash[:]) {
-		//		return NotSet
-		//	}
-		//	log.Info(fmt.Sprintf("Transaction %s was attempted to be replaced.", hex.EncodeToString(mt.Tx.IDHash[:])))
-		//	return NotReplaced
-		//}
-		//
-		//// Log nonce issue
-		//log.Info("Transaction is to be replaced",
-		//	"account", p.senders.senderID2Addr[mt.Tx.SenderID],
-		//	"oldTxHash", hex.EncodeToString(found.Tx.IDHash[:]),
-		//	"newTxHash", hex.EncodeToString(mt.Tx.IDHash[:]),
-		//	"nonce", mt.Tx.Nonce,
-		//)
-		//
-		//switch found.currentSubPool {
-		//case PendingSubPool:
-		//	p.pending.Remove(found)
-		//case BaseFeeSubPool:
-		//	p.baseFee.Remove(found)
-		//case QueuedSubPool:
-		//	p.queued.Remove(found)
-		//default:
-		//	//already removed
-		//}
-		//
-		//p.discardLocked(found, ReplacedByHigherTip)
-		return AlreadyKnown
+		fmt.Println("youngmin - addLocked found: ", found, " mt: ", mt)
+		if found.Tx.Nonce == mt.Tx.Nonce {
+			return AlreadyKnown
+		}
+		tipThreshold := uint256.NewInt(0)
+		tipThreshold = tipThreshold.Mul(&found.Tx.Tip, uint256.NewInt(100+p.cfg.PriceBump))
+		tipThreshold.Div(tipThreshold, u256.N100)
+		feecapThreshold := uint256.NewInt(0)
+		feecapThreshold.Mul(&found.Tx.FeeCap, uint256.NewInt(100+p.cfg.PriceBump))
+		feecapThreshold.Div(feecapThreshold, u256.N100)
+		if mt.Tx.Tip.Cmp(tipThreshold) < 0 || mt.Tx.FeeCap.Cmp(feecapThreshold) < 0 {
+			// Both tip and feecap need to be larger than previously to replace the transaction
+			// In case if the transation is stuck, "poke" it to rebroadcast
+			if mt.subPool&IsLocal != 0 && (found.currentSubPool == PendingSubPool || found.currentSubPool == BaseFeeSubPool) {
+				announcements.Append(found.Tx.Type, found.Tx.Size, found.Tx.IDHash[:])
+			}
+			if bytes.Equal(found.Tx.IDHash[:], mt.Tx.IDHash[:]) {
+				return NotSet
+			}
+			log.Info(fmt.Sprintf("Transaction %s was attempted to be replaced.", hex.EncodeToString(mt.Tx.IDHash[:])))
+			return NotReplaced
+		}
+
+		// Log nonce issue
+		log.Info("Transaction is to be replaced",
+			"account", p.senders.senderID2Addr[mt.Tx.SenderID],
+			"oldTxHash", hex.EncodeToString(found.Tx.IDHash[:]),
+			"newTxHash", hex.EncodeToString(mt.Tx.IDHash[:]),
+			"nonce", mt.Tx.Nonce,
+		)
+
+		switch found.currentSubPool {
+		case PendingSubPool:
+			p.pending.Remove(found)
+		case BaseFeeSubPool:
+			p.baseFee.Remove(found)
+		case QueuedSubPool:
+			p.queued.Remove(found)
+		default:
+			//already removed
+		}
+
+		p.discardLocked(found, ReplacedByHigherTip)
 	} else if p.pending.IsFull() {
 		// new transaction will be denied if pending pool is full unless it will replace an old transaction
 		return PendingPoolOverflow
