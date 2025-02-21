@@ -255,13 +255,11 @@ func (s *GrpcServer) Add(ctx context.Context, in *txpool_proto.AddRequest) (*txp
 			j++
 			fmt.Println("stompesi - case 1 reply.Imported[i]: ", reply.Imported[i].String())
 			continue
-		} else {
-			fmt.Println("stompesi - case 2 reply.Imported[i]: ", reply.Imported[i].String())
 		}
-
 		reply.Imported[i] = mapDiscardReasonToProto(discardReasons[j])
 		reply.Errors[i] = discardReasons[j].String()
 		j++
+		fmt.Println("stompesi - case 2 reply.Imported[i]: ", " discard reason: ", reply.Errors[i])
 	}
 	return reply, nil
 }

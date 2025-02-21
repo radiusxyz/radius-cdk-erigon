@@ -1187,6 +1187,7 @@ func (p *TxPool) addLocked(mt *metaTx, announcements *types.Announcements) Disca
 	if found != nil {
 		fmt.Println("youngmin - addLocked found: ", found, " mt: ", mt)
 		if found.Tx.SenderID == mt.Tx.SenderID && found.Tx.Nonce == mt.Tx.Nonce {
+			fmt.Println("youngmin - already known")
 			return AlreadyKnown
 		}
 		tipThreshold := uint256.NewInt(0)
@@ -1327,14 +1328,17 @@ func promote(pending *PendingPool, baseFee, queued *SubPool, pendingBaseFee uint
 	// Demote worst transactions that do not qualify for pending sub pool anymore, to other sub pools, or discard
 	for worst := pending.Worst(); pending.Len() > 0 && (worst.subPool < BaseFeePoolBits || worst.minFeeCap.Cmp(uint256.NewInt(pendingBaseFee)) < 0); worst = pending.Worst() {
 		if worst.subPool >= BaseFeePoolBits {
+			fmt.Println("youngmin - 1111111111")
 			tx := pending.PopWorst()
 			announcements.Append(tx.Tx.Type, tx.Tx.Size, tx.Tx.IDHash[:])
 			//baseFee.Add(tx)
 			discard(tx, MissedPendingTx)
 		} else if worst.subPool >= QueuedPoolBits {
+			fmt.Println("youngmin - 22222222222")
 			//queued.Add(pending.PopWorst())
 			discard(pending.PopWorst(), MissedPendingTx)
 		} else {
+			fmt.Println("youngmin - 33333333333")
 			discard(pending.PopWorst(), FeeTooLow)
 		}
 	}
@@ -1358,10 +1362,12 @@ func promote(pending *PendingPool, baseFee, queued *SubPool, pendingBaseFee uint
 	// Promote best transactions from the queued pool to either pending or base fee pool, while they qualify
 	for best := queued.Best(); queued.Len() > 0 && best.subPool >= BaseFeePoolBits; best = queued.Best() {
 		if best.minFeeCap.Cmp(uint256.NewInt(pendingBaseFee)) >= 0 {
+			fmt.Println("youngmin - 44444444")
 			tx := queued.PopBest()
 			announcements.Append(tx.Tx.Type, tx.Tx.Size, tx.Tx.IDHash[:])
 			pending.Add(tx)
 		} else {
+			fmt.Println("youngmin - 55555555")
 			//baseFee.Add(queued.PopBest())
 			discard(queued.PopWorst(), MissedPendingTx)
 		}
@@ -1369,21 +1375,25 @@ func promote(pending *PendingPool, baseFee, queued *SubPool, pendingBaseFee uint
 
 	// Discard worst transactions from the queued sub pool if they do not qualify
 	for worst := queued.Worst(); queued.Len() > 0 && worst.subPool < QueuedPoolBits; worst = queued.Worst() {
+		fmt.Println("youngmin - 66666666")
 		discard(queued.PopWorst(), FeeTooLow)
 	}
 
 	// Discard worst transactions from pending pool until it is within capacity limit
 	for pending.Len() > pending.limit {
+		fmt.Println("youngmin - 7777777")
 		discard(pending.PopWorst(), PendingPoolOverflow)
 	}
 
 	// Discard worst transactions from pending sub pool until it is within capacity limits
 	for baseFee.Len() > baseFee.limit {
+		fmt.Println("youngmin - 88888888")
 		discard(baseFee.PopWorst(), BaseFeePoolOverflow)
 	}
 
 	// Discard worst transactions from the queued sub pool until it is within its capacity limits
 	for _ = queued.Worst(); queued.Len() > queued.limit; _ = queued.Worst() {
+		fmt.Println("youngmin - 999999999")
 		discard(queued.PopWorst(), QueuedPoolOverflow)
 	}
 }
