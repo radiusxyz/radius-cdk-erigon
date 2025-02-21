@@ -1186,7 +1186,7 @@ func (p *TxPool) addLocked(mt *metaTx, announcements *types.Announcements) Disca
 	found := p.all.get(mt.Tx.SenderID, mt.Tx.Nonce)
 	if found != nil {
 		fmt.Println("youngmin - addLocked found: ", found, " mt: ", mt)
-		if found.Tx.Nonce == mt.Tx.Nonce {
+		if found.Tx.SenderID == mt.Tx.SenderID && found.Tx.Nonce == mt.Tx.Nonce {
 			return AlreadyKnown
 		}
 		tipThreshold := uint256.NewInt(0)

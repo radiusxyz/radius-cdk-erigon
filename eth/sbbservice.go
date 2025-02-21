@@ -91,8 +91,10 @@ func (s *SbbService) insertTransactions() {
 			//		panic("youngmin - currentBlock2" + err.Error())
 			//	}
 			//}
-			if err = s.blockchainService.SubmitRawTransactions(s.sbbCtx, blockTransactions.transactions); err != nil {
-				panic("youngmin - SubmitRawTransactions" + err.Error())
+			if len(blockTransactions.transactions) > 0 {
+				if err = s.blockchainService.SubmitRawTransactions(s.sbbCtx, blockTransactions.transactions); err != nil {
+					panic("youngmin - SubmitRawTransactions" + err.Error())
+				}
 			}
 			log.Info("SBB block transactions execution finished.")
 			//s.blockchainService.BlockCreationCh() <- struct{}{}
@@ -165,13 +167,11 @@ func (s *SbbService) requestToSbb() {
 
 			endTime := time.Now().UnixMilli()
 			duration := endTime - startTime
-			var nextActionDelay time.Duration
 			if loopTime-duration > 0 {
-				nextActionDelay = time.Duration(loopTime - duration)
+				timer.Reset(time.Duration(loopTime-duration) * time.Millisecond)
 			} else {
-				nextActionDelay = time.Duration(0)
+				timer.Reset(0)
 			}
-			timer.Reset(nextActionDelay)
 		case <-s.sbbCtx.Done():
 			return
 		}
