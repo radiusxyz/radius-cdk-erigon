@@ -179,7 +179,7 @@ func (s *SbbService) requestToSbb() {
 }
 
 func (s *SbbService) fetchPlatformBlockNumber(ctx context.Context) (*uint64, error) {
-	reqCtx, reqCancel := context.WithTimeout(ctx, 2*time.Second) // TODO: configuration
+	reqCtx, reqCancel := context.WithTimeout(ctx, 10*time.Second) // TODO: configuration
 	defer reqCancel()
 
 	platformBlockNumber, err := s.ethClient.BlockNumber(reqCtx)
@@ -234,7 +234,7 @@ func (s *SbbService) getLeaderTxOrdererIndex(finalizeBlockNumber uint64, txOrder
 }
 
 func (s *SbbService) fetchTxOrdererAddresses(ctx context.Context, platformBlockNumber uint64) ([]string, error) {
-	reqCtx, reqCancel := context.WithTimeout(ctx, 2*time.Second)
+	reqCtx, reqCancel := context.WithTimeout(ctx, 10*time.Second)
 	defer reqCancel()
 
 	contractAbi, err := abi.JSON(strings.NewReader(abiString))
@@ -278,7 +278,7 @@ func (s *SbbService) fetchTxOrdererAddresses(ctx context.Context, platformBlockN
 }
 
 func (s *SbbService) fetchTxOrdererRpcUrls(ctx context.Context, txOrdererAddresses []string) ([]string, []string, error) {
-	reqCtx, reqCancel := context.WithTimeout(ctx, 2*time.Second)
+	reqCtx, reqCancel := context.WithTimeout(ctx, 10*time.Second)
 	defer reqCancel()
 
 	body := newJsonRpcRequest(GetTxOrdererRpcUrlList, GetTxOrdererRpcUrlsParams{
@@ -366,7 +366,7 @@ func (s *SbbService) finalizeBlock(ctx context.Context, platformBlockNumber uint
 
 		body := newJsonRpcRequest(FinalizeBlock, params)
 
-		reqCtx, reqCancel := context.WithTimeout(ctx, 2*time.Second)
+		reqCtx, reqCancel := context.WithTimeout(ctx, 10*time.Second)
 		defer reqCancel()
 
 		if err = s.sbbClient.Send(reqCtx, txOrdererRpcUrls[*leaderTxOrdererIndex], body, nil); err != nil {
@@ -394,7 +394,7 @@ func (s *SbbService) finalizeBlock(ctx context.Context, platformBlockNumber uint
 }
 
 func (s *SbbService) getRawTransactions(ctx context.Context, finalizedBlockNumber uint64, txOrdererRpcUrls []string, leaderTxOrdererIndex *uint64) ([][]byte, error) {
-	reqCtx, reqCancel := context.WithTimeout(ctx, 2*time.Second)
+	reqCtx, reqCancel := context.WithTimeout(ctx, 10*time.Second)
 	defer reqCancel()
 
 	params := GetRawTransactionsParams{
