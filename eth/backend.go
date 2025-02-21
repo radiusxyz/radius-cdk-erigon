@@ -2131,9 +2131,11 @@ func (s *Ethereum) BlockCreationCh() chan struct{} {
 
 func (s *Ethereum) SubmitRawTransactions(ctx context.Context, encodedTxs [][]byte) error {
 	txPoolClient := direct.NewTxPoolClient(s.txPool2GrpcServer)
-	_, err := txPoolClient.Add(ctx, &txpoolproto.AddRequest{RlpTxs: encodedTxs})
-	if err != nil {
-		return err
+	for _, encodedTx := range encodedTxs {
+		_, err := txPoolClient.Add(ctx, &txpoolproto.AddRequest{RlpTxs: [][]byte{encodedTx}})
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
