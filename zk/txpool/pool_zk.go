@@ -143,6 +143,7 @@ func (p *TxPool) onSenderStateChange(senderID uint64, senderNonce uint64, sender
 		return true
 	})
 	for _, mt := range toDel {
+		fmt.Println("youngmin - discard: ", mt.seq)
 		discard(mt, NonceTooLow)
 	}
 }

@@ -887,6 +887,7 @@ func (p *TxPool) validateTxs(txs *types.TxSlots, stateCache kvcache.CacheView) (
 		}
 		if reason == Spammer {
 			p.punishSpammer(txn.SenderID)
+			fmt.Println("youngmin - spammer: ", txn)
 		}
 		reasons[i] = reason
 	}
@@ -902,6 +903,7 @@ func (p *TxPool) validateTxs(txs *types.TxSlots, stateCache kvcache.CacheView) (
 			j++
 		}
 	}
+	fmt.Println("youngmin - totaltx: ", len(txs.Txs), " goodTxs: ", len(goodTxs.Txs))
 	return reasons, goodTxs, nil
 }
 
