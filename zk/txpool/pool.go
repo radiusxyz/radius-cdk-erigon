@@ -1047,11 +1047,13 @@ func (p *TxPool) addTxs(blockNum uint64, cacheView kvcache.CacheView, senders *s
 			if collect && newTxs.IsLocal[i] && (found.currentSubPool == PendingSubPool || found.currentSubPool == BaseFeeSubPool) {
 				announcements.Append(found.Tx.Type, found.Tx.Size, found.Tx.IDHash[:])
 			}
+			fmt.Println("youngmin - duplicateHash")
 			continue
 		}
 		mt := newMetaTx(i, txn, newTxs.IsLocal[i], blockNum)
 		if reason := add(mt, &announcements); reason != NotSet {
 			discardReasons[i] = reason
+			fmt.Println("youngmin - add fail")
 			continue
 		}
 		discardReasons[i] = NotSet
@@ -1232,6 +1234,7 @@ func (p *TxPool) addLocked(mt *metaTx, announcements *types.Announcements) Disca
 
 		p.discardLocked(found, ReplacedByHigherTip)
 	} else if p.pending.IsFull() {
+		fmt.Println("youngmin - pending is full")
 		// new transaction will be denied if pending pool is full unless it will replace an old transaction
 		return PendingPoolOverflow
 	}
@@ -1259,6 +1262,7 @@ func (p *TxPool) discardLocked(mt *metaTx, reason DiscardReason) {
 	p.deletedTxs = append(p.deletedTxs, mt)
 	p.all.delete(mt)
 	p.discardReasonsLRU.Add(string(mt.Tx.IDHash[:]), reason)
+	fmt.Println("youngmin - discard tx: ", mt)
 }
 
 func (p *TxPool) NonceFromAddress(addr [20]byte) (nonce uint64, inPool bool) {

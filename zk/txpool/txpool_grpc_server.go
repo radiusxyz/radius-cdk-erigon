@@ -217,15 +217,7 @@ func (s *GrpcServer) Add(ctx context.Context, in *txpool_proto.AddRequest) (*txp
 		j++
 	}
 
-	fmt.Println("stompesi - len(in.RlpTxs)", len(in.RlpTxs))
-
 	discardReasons, err := s.txPool.AddLocalTxs(ctx, slots, tx)
-
-	fmt.Println("stompesi - tx", tx)
-	fmt.Println("stompesi - len(slots.Txs)", len(slots.Txs))
-	fmt.Println("stompesi - len(discardReasons)", len(discardReasons))
-	fmt.Println("stompesi - len(reply.Imported)", len(reply.Imported))
-
 	if err != nil {
 		return nil, err
 	}
