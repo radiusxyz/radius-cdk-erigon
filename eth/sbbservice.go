@@ -78,26 +78,11 @@ func (s *SbbService) insertTransactions() {
 	for {
 		select {
 		case blockTransactions := <-s.blockTransactionsCh:
-			log.Info("SBB block transactions execution started.")
-			currentBlockNumber, err := s.blockchainService.GetBlockNumber()
-			if err != nil {
-				panic("youngmin - currentBlock" + err.Error())
-			}
-			fmt.Println("youngmin - blockTransactions.blockNumber: ", blockTransactions.blockNumber, " currentBlockNumber: ", *currentBlockNumber)
-			//for blockTransactions.blockNumber != *currentBlockNumber+2 {
-			//	time.Sleep(100 * time.Millisecond)
-			//	currentBlockNumber, err = s.blockchainService.GetBlockNumber()
-			//	if err != nil {
-			//		panic("youngmin - currentBlock2" + err.Error())
-			//	}
-			//}
 			if len(blockTransactions.transactions) > 0 {
-				if err = s.blockchainService.SubmitRawTransactions(s.sbbCtx, blockTransactions.transactions); err != nil {
+				if err := s.blockchainService.SubmitRawTransactions(s.sbbCtx, blockTransactions.transactions); err != nil {
 					panic("youngmin - SubmitRawTransactions" + err.Error())
 				}
 			}
-			log.Info("SBB block transactions execution finished.")
-			//s.blockchainService.BlockCreationCh() <- struct{}{}
 		case <-s.sbbCtx.Done():
 			return
 		}
@@ -111,7 +96,6 @@ func (s *SbbService) requestToSbb() {
 	if err != nil {
 		panic(err.Error())
 	}
-	fmt.Println("youngmin - ablockNumber: ", *blockNumber)
 	if *blockNumber == 0 {
 		*blockNumber = 1
 	}
@@ -127,10 +111,14 @@ func (s *SbbService) requestToSbb() {
 		case <-timer.C:
 			startTime := time.Now().UnixMilli()
 
-			Retry(s.sbbCtx, func() error {
+			if err = Retry(s.sbbCtx, func() error {
 				platformBlockNumber, err = s.fetchPlatformBlockNumber(s.sbbCtx)
 				return err
-			}, 300*time.Millisecond)
+			}, 300*time.Millisecond, 10); err != nil {
+				log.Errorf("fetchPlatformBlockNumber error: %v", err)
+				timer.Reset(100 * time.Millisecond)
+				break
+			}
 
 			requestPlatformBlockNumber := *platformBlockNumber - 6
 			finalizingBlockNumber := finalizedBlockNumber + 1
@@ -153,7 +141,7 @@ func (s *SbbService) requestToSbb() {
 
 			time.Sleep(300 * time.Millisecond)
 
-			Retry(s.sbbCtx, func() error {
+			if err = Retry(s.sbbCtx, func() error {
 				transactions, err := s.getRawTransactions(s.sbbCtx, finalizingBlockNumber, txOrdererRpcUrls, leaderTxOrdererIndex)
 				if err != nil {
 					log.Errorf("failed to get raw transactions, error: %v", err)
@@ -161,7 +149,11 @@ func (s *SbbService) requestToSbb() {
 				}
 				s.blockTransactionsCh <- &BlockTransactions{blockNumber: finalizingBlockNumber, transactions: transactions}
 				return nil
-			}, 100*time.Millisecond)
+			}, 100*time.Millisecond, 10); err != nil {
+				log.Errorf("getRawTransactions error: %v", err)
+				timer.Reset(100 * time.Millisecond)
+				break
+			}
 
 			finalizedBlockNumber = finalizingBlockNumber
 
@@ -439,20 +431,21 @@ func (s *SbbService) getRawTransactions(ctx context.Context, finalizedBlockNumbe
 	return nil, errors.New("no tx_orderer")
 }
 
-func Retry(ctx context.Context, fn func() error, retryInterval time.Duration) {
-	for {
+func Retry(ctx context.Context, fn func() error, retryInterval time.Duration, retryCount int) error {
+	for i := 0; i < retryCount; i++ {
 		select {
 		case <-ctx.Done():
-			return
+			return nil
 		default:
 		}
 
 		err := fn()
 		if err == nil {
-			return
+			return nil
 		}
 		time.Sleep(retryInterval)
 	}
+	return errors.New("the retry limit has been exceeded.")
 }
 
 // finalizeBatches runs the endless loop for processing transactions finalizing batches.
