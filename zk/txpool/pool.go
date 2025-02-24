@@ -1375,7 +1375,10 @@ func promote(pending *PendingPool, baseFee, queued *SubPool, pendingBaseFee uint
 	//	}
 	//}
 
-	fmt.Println("youngmin - queued.Len(): ", queued.Len(), " best.subPool: ", queued.Best().subPool)
+	fmt.Println("youngmin - queued.Len(): ", queued.Len())
+	if queued.Len() > 0 {
+		fmt.Println("best.subPool: ", queued.Best().subPool)
+	}
 	// Promote best transactions from the queued pool to either pending or base fee pool, while they qualify
 	for best := queued.Best(); queued.Len() > 0 && best.subPool >= BaseFeePoolBits; best = queued.Best() {
 		if best.minFeeCap.Cmp(uint256.NewInt(pendingBaseFee)) >= 0 {
