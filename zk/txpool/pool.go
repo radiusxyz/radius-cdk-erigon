@@ -1223,10 +1223,13 @@ func (p *TxPool) addLocked(mt *metaTx, announcements *types.Announcements) Disca
 
 		switch found.currentSubPool {
 		case PendingSubPool:
+			fmt.Println("youngmin - removepending")
 			p.pending.Remove(found)
 		case BaseFeeSubPool:
+			fmt.Println("youngmin - removebasefee")
 			p.baseFee.Remove(found)
 		case QueuedSubPool:
+			fmt.Println("youngmin - removequeued")
 			p.queued.Remove(found)
 		default:
 			//already removed
@@ -1239,6 +1242,7 @@ func (p *TxPool) addLocked(mt *metaTx, announcements *types.Announcements) Disca
 		return PendingPoolOverflow
 	}
 
+	fmt.Println("youngmin - kkkkkkkk: ", mt)
 	p.byHash[string(mt.Tx.IDHash[:])] = mt
 
 	if replaced := p.all.replaceOrInsert(mt); replaced != nil {
@@ -1246,7 +1250,7 @@ func (p *TxPool) addLocked(mt *metaTx, announcements *types.Announcements) Disca
 			panic("must never happen")
 		}
 	}
-
+	fmt.Println("youngmin - qqqqqqqqq: ", mt)
 	if mt.subPool&IsLocal != 0 {
 		p.isLocalLRU.Add(string(mt.Tx.IDHash[:]), struct{}{})
 	}
@@ -2375,6 +2379,7 @@ func (p *SubPool) Add(i *metaTx) {
 	i.currentSubPool = p.t
 	heap.Push(p.best, i)
 	heap.Push(p.worst, i)
+	fmt.Println("youngmin - 넣음")
 }
 
 func (p *SubPool) Remove(i *metaTx) {
