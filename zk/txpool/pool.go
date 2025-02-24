@@ -469,7 +469,7 @@ func (p *TxPool) OnNewBlock(ctx context.Context, stateChanges *remote.StateChang
 			}
 		}
 	}
-
+	fmt.Println("youngmin - mmmmmmmmmm")
 	if err := removeMined(p.all, minedTxs.Txs, p.pending, p.baseFee, p.queued, p.discardLocked); err != nil {
 		return err
 	}
@@ -570,6 +570,7 @@ func (p *TxPool) processRemoteTxs(ctx context.Context) error {
 		return err
 	}
 
+	fmt.Println("youngmin - iiiiiiiiiiii")
 	announcements, _, err := p.addTxs(p.lastSeenBlock.Load(), cacheView, p.senders, newTxs,
 		p.pendingBaseFee.Load(), p.blockGasLimit.Load(), p.pending, p.baseFee, p.queued, p.all, p.byHash, p.addLocked, p.discardLocked, true)
 	if err != nil {
@@ -918,6 +919,7 @@ func (p *TxPool) punishSpammer(spammer uint64) {
 			return count > 0
 		})
 		for _, mt := range txsToDelete {
+			fmt.Println("youngmin - uuuuuuuuuu")
 			p.discardLocked(mt, Spammer) // can't call it while iterating by all
 		}
 	}
@@ -971,6 +973,7 @@ func (p *TxPool) AddLocalTxs(ctx context.Context, newTransactions types.TxSlots,
 		return nil, err
 	}
 
+	fmt.Println("youngmin - yyyyyyyyy")
 	announcements, addReasons, err := p.addTxs(p.lastSeenBlock.Load(), cacheView, p.senders, newTxs,
 		p.pendingBaseFee.Load(), p.blockGasLimit.Load(), p.pending, p.baseFee, p.queued, p.all, p.byHash, p.addLocked, p.discardLocked, true)
 	if err == nil {
@@ -1122,6 +1125,7 @@ func (p *TxPool) addTxsOnNewBlock(
 		}
 		mt := newMetaTx(i, txn, newTxs.IsLocal[i], blockNum)
 		if reason := add(mt, &announcements); reason != NotSet {
+			fmt.Println("youngmin - oooooooooooo")
 			discard(mt, reason)
 			sendersWithChangedStateBeforeLimboTrim.decrement(txn.SenderID)
 			continue
@@ -1235,6 +1239,7 @@ func (p *TxPool) addLocked(mt *metaTx, announcements *types.Announcements) Disca
 			//already removed
 		}
 
+		fmt.Println("youngmin - ttttttttt")
 		p.discardLocked(found, ReplacedByHigherTip)
 	} else if p.pending.IsFull() {
 		fmt.Println("youngmin - pending is full")
@@ -1758,6 +1763,7 @@ func (p *TxPool) fromDB(ctx context.Context, tx kv.Tx, coreTx kv.Tx) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("youngmin - rrrrrrrrr")
 	if _, _, err := p.addTxs(p.lastSeenBlock.Load(), cacheView, p.senders, txs,
 		pendingBaseFee, math.MaxUint64 /* blockGasLimit */, p.pending, p.baseFee, p.queued, p.all, p.byHash, p.addLocked, p.discardLocked, false); err != nil {
 		return err
@@ -1914,6 +1920,7 @@ func (p *TxPool) purge() {
 			//already removed
 		}
 
+		fmt.Println("wwwwwwwwwww")
 		p.discardLocked(mt, Expired)
 
 		// do not hold on to the discard reason as we're purging it completely from the pool and an end user
