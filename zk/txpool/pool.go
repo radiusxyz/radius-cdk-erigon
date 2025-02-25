@@ -2423,7 +2423,10 @@ func (mt *metaTx) better(than *metaTx, pendingBaseFee uint256.Int) bool {
 	if mt.created != than.created {
 		return mt.created < than.created
 	}
-	return mt.seq < than.seq
+	if mt.seq != than.seq {
+		return mt.seq < than.seq
+	}
+	return mt.nonceDistance < than.nonceDistance
 
 	//subPool := mt.subPool
 	//thanSubPool := than.subPool
@@ -2491,7 +2494,10 @@ func (mt *metaTx) worse(than *metaTx, pendingBaseFee uint256.Int) bool {
 	if mt.created != than.created {
 		return mt.created > than.created
 	}
-	return mt.seq > than.seq
+	if mt.seq != than.seq {
+		return mt.seq > than.seq
+	}
+	return mt.nonceDistance > than.nonceDistance
 
 	//subPool := mt.subPool
 	//thanSubPool := than.subPool
