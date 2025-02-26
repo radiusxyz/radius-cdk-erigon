@@ -445,7 +445,7 @@ func Retry(ctx context.Context, fn func() error, retryInterval time.Duration, re
 		}
 		time.Sleep(retryInterval)
 	}
-	return errors.New("the retry limit has been exceeded.")
+	return errors.New("the retry limit has been exceeded")
 }
 
 // finalizeBatches runs the endless loop for processing transactions finalizing batches.
