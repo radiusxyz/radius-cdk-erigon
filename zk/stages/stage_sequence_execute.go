@@ -2,6 +2,7 @@ package stages
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -321,6 +322,7 @@ func sequencingBatchStep(
 
 		innerBreak := false
 		emptyBlockOverflow := false
+		sendersToTriggerStatechanges := make(map[common.Address]struct{})
 
 	OuterLoopTransactions:
 		for {
@@ -500,6 +502,17 @@ func sequencingBatchStep(
 						continue
 					}
 
+					if errors.Is(err, core.ErrNonceTooHigh) || errors.Is(err, core.ErrNonceTooLow) {
+						// here we have a case where some situation has caused a nonce issue to find its way into the pending pool
+						// we want to skip transactions for this sender in this batch for now and ask the pool to trigger a sender
+						// state change for this sender.  This will cause the pool to skip any transactions from this sender until
+						// the sender's nonce is corrected in the pending pool
+						log.Info(fmt.Sprintf("[%s] nonce issue detected for sender, skipping transactions for now", logPrefix), "sender", txSender.Hex(), "nonceIssue", err)
+						sendersToSkip[txSender] = struct{}{}
+						sendersToTriggerStatechanges[txSender] = struct{}{}
+						continue
+					}
+
 					// if we have an error at this point something has gone wrong, either in the pool or otherwise
 					// to stop the pool growing and hampering further processing of good transactions here
 					// we mark it for being discarded
@@ -673,6 +686,14 @@ func sequencingBatchStep(
 		// add a check to the verifier and also check for responses
 		batchState.onBuiltBlock(blockNumber)
 
+		// check if we are in limbo recovery and update the pool with the new state root for the latest transaction
+		// being checked then return before committing anything about the block to the DB
+		if batchState.isLimboRecovery() {
+			stateRoot := block.Root()
+			cfg.txPool.UpdateLimboRootByTxHash(batchState.limboRecoveryData.limboTxHash, &stateRoot)
+			return fmt.Errorf("[%s] %w: %s = %s", s.LogPrefix(), zk.ErrLimboState, batchState.limboRecoveryData.limboTxHash.Hex(), stateRoot.Hex())
+		}
+
 		if !batchState.isL1Recovery() {
 			// commit block data here so it is accessible in other threads
 			if errCommitAndStart := sdb.CommitAndStart(); errCommitAndStart != nil {
@@ -688,10 +709,9 @@ func sequencingBatchStep(
 			return err
 		}
 
-		if batchState.isLimboRecovery() {
-			stateRoot := block.Root()
-			cfg.txPool.UpdateLimboRootByTxHash(batchState.limboRecoveryData.limboTxHash, &stateRoot)
-			return fmt.Errorf("[%s] %w: %s = %s", s.LogPrefix(), zk.ErrLimboState, batchState.limboRecoveryData.limboTxHash.Hex(), stateRoot.Hex())
+		// now trigger sender state changes in the pool where we encountered nonce issues during execution
+		if err := cfg.txPool.TriggerSenderStateChanges(ctx, sdb.tx, header.GasLimit, sendersToTriggerStatechanges); err != nil {
+			return err
 		}
 
 		t.LogTimer()
