@@ -61,23 +61,13 @@ func NewSbbService(ctx context.Context, blockchainService BlockchainService) (*S
 		log.Fatal(err)
 	}
 
-	blockNumber, err := blockchainService.GetBlockNumber()
-	if err != nil {
-		panic(err.Error())
-	}
-	if *blockNumber == 0 {
-		*blockNumber = 1
-	}
-
 	return &SbbService{
-		sbbClient:              sbbClient,
-		ethClient:              ethClient,
-		blockchainService:      blockchainService,
-		sequencerPrivateKey:    sequencerPrivateKey,
-		blockTransactionsCh:    make(chan *BlockTransactions, blockchainService.Config().MaxSbbFinalizationCapacity),
-		sbbCtx:                 ctx,
-		finalizedBlockNumber:   *blockNumber + 1,
-		preparedTxsBlockNumber: *blockNumber + 1,
+		sbbClient:           sbbClient,
+		ethClient:           ethClient,
+		blockchainService:   blockchainService,
+		sequencerPrivateKey: sequencerPrivateKey,
+		blockTransactionsCh: make(chan *BlockTransactions, blockchainService.Config().MaxSbbFinalizationCapacity),
+		sbbCtx:              ctx,
 	}, nil
 }
 
@@ -105,6 +95,16 @@ func (s *SbbService) insertTransactions() {
 func (s *SbbService) requestToSbb() {
 	loopTime := int64(3000)
 	timer := time.NewTimer(time.Duration(loopTime) * time.Millisecond)
+
+	blockNumber, err := s.blockchainService.GetBlockNumber()
+	if err != nil {
+		panic(err.Error())
+	}
+	if *blockNumber == 0 {
+		*blockNumber = 1
+	}
+	s.finalizedBlockNumber = *blockNumber + 1
+	s.preparedTxsBlockNumber = *blockNumber + 1
 
 	var platformBlockNumber *uint64
 	var validTxOrdererAddresses []string
