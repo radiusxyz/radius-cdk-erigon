@@ -1,4 +1,4 @@
-package eth
+package sbbclient
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	"github.com/ledgerwatch/erigon/crypto"
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/ethclient"
-	"github.com/ledgerwatch/erigon/sbbclient"
+	"github.com/ledgerwatch/erigon/httpclient"
 	"github.com/ledgerwatch/erigon/zkevm/log"
 	"math/big"
 	"strings"
@@ -41,8 +41,8 @@ type BlockTransactions struct {
 	transactions [][]byte
 }
 
-type SbbService struct {
-	sbbClient              *sbbclient.SbbClient
+type SbbClient struct {
+	httpClient             *httpclient.HttpClient
 	ethClient              *ethclient.Client
 	blockchainService      BlockchainService
 	sequencerPrivateKey    *ecdsa.PrivateKey
@@ -52,8 +52,8 @@ type SbbService struct {
 	preparedTxsBlockNumber uint64
 }
 
-func NewSbbService(ctx context.Context, blockchainService BlockchainService) (*SbbService, error) {
-	sbbClient := sbbclient.New()
+func NewSbbClient(ctx context.Context, blockchainService BlockchainService) (*SbbClient, error) {
+	httpClient := httpclient.New()
 	ethClient, _ := ethclient.Dial(blockchainService.Config().PlatformUrl) // TODO: error handling
 	sequencerPrivateKey, err := NewPrivateKeyFromHexKey(blockchainService.Config().SequencerPrivateKey)
 	fmt.Println("youngmin - sequencerPrivateKey: ", sequencerPrivateKey)
@@ -61,8 +61,8 @@ func NewSbbService(ctx context.Context, blockchainService BlockchainService) (*S
 		log.Fatal(err)
 	}
 
-	return &SbbService{
-		sbbClient:           sbbClient,
+	return &SbbClient{
+		httpClient:          httpClient,
 		ethClient:           ethClient,
 		blockchainService:   blockchainService,
 		sequencerPrivateKey: sequencerPrivateKey,
@@ -71,13 +71,13 @@ func NewSbbService(ctx context.Context, blockchainService BlockchainService) (*S
 	}, nil
 }
 
-func (s *SbbService) Start() {
+func (s *SbbClient) Start() {
 	log.Info("Starting sbb service...")
 	go s.requestToSbb()
 	go s.insertTransactions()
 }
 
-func (s *SbbService) insertTransactions() {
+func (s *SbbClient) insertTransactions() {
 	for {
 		select {
 		case blockTransactions := <-s.blockTransactionsCh:
@@ -92,7 +92,7 @@ func (s *SbbService) insertTransactions() {
 	}
 }
 
-func (s *SbbService) requestToSbb() {
+func (s *SbbClient) requestToSbb() {
 	loopTime := int64(3000)
 	timer := time.NewTimer(time.Duration(loopTime) * time.Millisecond)
 
@@ -173,7 +173,7 @@ func (s *SbbService) requestToSbb() {
 	}
 }
 
-func (s *SbbService) fetchPlatformBlockNumber(ctx context.Context) (*uint64, error) {
+func (s *SbbClient) fetchPlatformBlockNumber(ctx context.Context) (*uint64, error) {
 	reqCtx, reqCancel := context.WithTimeout(ctx, 10*time.Second) // TODO: configuration
 	defer reqCancel()
 
@@ -185,7 +185,7 @@ func (s *SbbService) fetchPlatformBlockNumber(ctx context.Context) (*uint64, err
 	return &platformBlockNumber, nil
 }
 
-func (s *SbbService) fetchTxOrdererInfo(ctx context.Context, platformBlockNumber uint64, finalizeBlockNumber uint64) ([]string, []string, *uint64, error) {
+func (s *SbbClient) fetchTxOrdererInfo(ctx context.Context, platformBlockNumber uint64, finalizeBlockNumber uint64) ([]string, []string, *uint64, error) {
 	txOrdererAddresses, err := s.fetchTxOrdererAddresses(ctx, platformBlockNumber)
 	if err != nil {
 		log.Error("failed to fetch tx_orderer addresses ", "error ", err.Error())
@@ -211,7 +211,7 @@ func (s *SbbService) fetchTxOrdererInfo(ctx context.Context, platformBlockNumber
 	return validTxOrdererAddresses, txOrdererRpcUrls, leaderTxOrdererIndex, nil
 }
 
-func (s *SbbService) getLeaderTxOrdererIndex(finalizeBlockNumber uint64, txOrdererRpcUrls []string) (*uint64, error) {
+func (s *SbbClient) getLeaderTxOrdererIndex(finalizeBlockNumber uint64, txOrdererRpcUrls []string) (*uint64, error) {
 
 	if len(txOrdererRpcUrls) < 1 {
 		return nil, errors.New("there are no URLs available, making modular arithmetic impossible")
@@ -228,7 +228,7 @@ func (s *SbbService) getLeaderTxOrdererIndex(finalizeBlockNumber uint64, txOrder
 	return &mod, nil
 }
 
-func (s *SbbService) fetchTxOrdererAddresses(ctx context.Context, platformBlockNumber uint64) ([]string, error) {
+func (s *SbbClient) fetchTxOrdererAddresses(ctx context.Context, platformBlockNumber uint64) ([]string, error) {
 	reqCtx, reqCancel := context.WithTimeout(ctx, 10*time.Second)
 	defer reqCancel()
 
@@ -272,7 +272,7 @@ func (s *SbbService) fetchTxOrdererAddresses(ctx context.Context, platformBlockN
 	return txOrdererAddresses, nil
 }
 
-func (s *SbbService) fetchTxOrdererRpcUrls(ctx context.Context, txOrdererAddresses []string) ([]string, []string, error) {
+func (s *SbbClient) fetchTxOrdererRpcUrls(ctx context.Context, txOrdererAddresses []string) ([]string, []string, error) {
 	reqCtx, reqCancel := context.WithTimeout(ctx, 10*time.Second)
 	defer reqCancel()
 
@@ -281,7 +281,7 @@ func (s *SbbService) fetchTxOrdererRpcUrls(ctx context.Context, txOrdererAddress
 	})
 
 	res := &GetTxOrdererRpcUrlsResponse{}
-	if err := s.sbbClient.Send(reqCtx, s.blockchainService.Config().SeedNodeUrl, body, res); err != nil {
+	if err := s.httpClient.Send(reqCtx, s.blockchainService.Config().SeedNodeUrl, body, res); err != nil {
 		log.Error("failed to send get_tx_orderer_rpc_url_list request to seeder node", "error", err.Error())
 
 		return nil, nil, err
@@ -299,7 +299,7 @@ func (s *SbbService) fetchTxOrdererRpcUrls(ctx context.Context, txOrdererAddress
 	return validTxOrdererAddresses, txOrdererRpcUrls, nil
 }
 
-func (s *SbbService) getNextLeaderTxOrdererIndex(txOrdererCount uint64, currentLeaderSeqeuncerIndex uint64) (*uint64, error) {
+func (s *SbbClient) getNextLeaderTxOrdererIndex(txOrdererCount uint64, currentLeaderSeqeuncerIndex uint64) (*uint64, error) {
 	if txOrdererCount < 1 {
 		return nil, errors.New("cannot divide by zero")
 	}
@@ -309,7 +309,7 @@ func (s *SbbService) getNextLeaderTxOrdererIndex(txOrdererCount uint64, currentL
 	return &nextLeaderTxOrdererIndex, nil
 }
 
-func (s *SbbService) increaseLeaderTxOrdererIndex(txOrdererCount uint64, leaderTxOrdererIndex *uint64) error {
+func (s *SbbClient) increaseLeaderTxOrdererIndex(txOrdererCount uint64, leaderTxOrdererIndex *uint64) error {
 	if txOrdererCount < 1 {
 		return errors.New("cannot divide by zero")
 	}
@@ -319,7 +319,7 @@ func (s *SbbService) increaseLeaderTxOrdererIndex(txOrdererCount uint64, leaderT
 	return nil
 }
 
-func (s *SbbService) finalizeBlock(ctx context.Context, platformBlockNumber uint64, txOrdererRpcUrls []string, leaderTxOrdererIndex *uint64, txOrdererAddresses []string) error {
+func (s *SbbClient) finalizeBlock(ctx context.Context, platformBlockNumber uint64, txOrdererRpcUrls []string, leaderTxOrdererIndex *uint64, txOrdererAddresses []string) error {
 	if s.finalizedBlockNumber > s.preparedTxsBlockNumber {
 		log.Warn("Skip finalize block", "number", s.finalizedBlockNumber)
 		return nil
@@ -369,7 +369,7 @@ func (s *SbbService) finalizeBlock(ctx context.Context, platformBlockNumber uint
 		reqCtx, reqCancel := context.WithTimeout(ctx, 10*time.Second)
 		defer reqCancel()
 
-		if err = s.sbbClient.Send(reqCtx, txOrdererRpcUrls[*leaderTxOrdererIndex], body, nil); err != nil {
+		if err = s.httpClient.Send(reqCtx, txOrdererRpcUrls[*leaderTxOrdererIndex], body, nil); err != nil {
 			if !strings.Contains(err.Error(), "connection refused") {
 				return fmt.Errorf("failed to send finalize_block request to SBB: %s request params: platformHeight %d rollupHeight %d url %s now %d", err.Error(), message.PlatformBlockHeight, message.RollupBlockHeight, txOrdererRpcUrls[*leaderTxOrdererIndex], time.Now().UnixMilli())
 			}
@@ -394,7 +394,7 @@ func (s *SbbService) finalizeBlock(ctx context.Context, platformBlockNumber uint
 	return errors.New("no tx_orderer")
 }
 
-func (s *SbbService) getRawTransactions(ctx context.Context, txOrdererRpcUrls []string, leaderTxOrdererIndex *uint64) ([][]byte, error) {
+func (s *SbbClient) getRawTransactions(ctx context.Context, txOrdererRpcUrls []string, leaderTxOrdererIndex *uint64) ([][]byte, error) {
 	reqCtx, reqCancel := context.WithTimeout(ctx, 10*time.Second)
 	defer reqCancel()
 
@@ -409,7 +409,7 @@ func (s *SbbService) getRawTransactions(ctx context.Context, txOrdererRpcUrls []
 	txOrdererCount := len(txOrdererRpcUrls)
 
 	for i := 0; i < txOrdererCount; i++ {
-		if err := s.sbbClient.Send(reqCtx, txOrdererRpcUrls[*leaderTxOrdererIndex], body, res); err != nil {
+		if err := s.httpClient.Send(reqCtx, txOrdererRpcUrls[*leaderTxOrdererIndex], body, res); err != nil {
 			if !strings.Contains(err.Error(), "connection refused") {
 				return nil, fmt.Errorf("failed to send get_raw_transaction_list request to SBB: %s height %d url %s now %d", err.Error(), params.RollupBlockHeight, txOrdererRpcUrls[*leaderTxOrdererIndex], time.Now().UnixMilli())
 			}
@@ -459,12 +459,6 @@ func Retry(ctx context.Context, fn func() error, retryInterval time.Duration, re
 	return errors.New("the retry limit has been exceeded")
 }
 
-// finalizeBatches runs the endless loop for processing transactions finalizing batches.
-func (s *SbbService) finalizeBatchesWithSbb(ctx context.Context) error {
-	log.Debug("finalizer init loop with SBB")
-	return nil
-}
-
 func Bytes2Hex(d []byte) string {
 	return hex.EncodeToString(d)
 }
@@ -476,80 +470,3 @@ func NewPrivateKeyFromHexKey(hexKey string) (*ecdsa.PrivateKey, error) {
 	}
 	return key, nil
 }
-
-type JSONRPCRequest[T any] struct {
-	JSONRPC string `json:"jsonrpc"`
-	Method  string `json:"method"`
-	Params  T      `json:"params"`
-	ID      int    `json:"id"`
-}
-
-func newJsonRpcRequest[T any](method Method, params T) JSONRPCRequest[T] {
-	return JSONRPCRequest[T]{
-		JSONRPC: "2.0",
-		Method:  string(method),
-		Params:  params,
-		ID:      1,
-	}
-}
-
-type GetTxOrdererRpcUrlsParams struct {
-	TxOrdererAddresses []string `json:"tx_orderer_address_list"`
-}
-
-type TxOrdererRpcUrl struct {
-	Address        string `json:"address"`
-	ExternalRpcUrl string `json:"external_rpc_url"`
-	ClusterRpcUrl  string `json:"cluster_rpc_url"`
-}
-
-type GetTxOrdererRpcUrlsResponse struct {
-	TxOrdererRpcUrls []TxOrdererRpcUrl `json:"tx_orderer_rpc_url_list"`
-}
-
-type FinalizeBlockMessageParams struct {
-	RollupId        string `json:"rollup_id"`
-	ExecutorAddress string `json:"executor_address"`
-
-	PlatformBlockHeight uint64 `json:"platform_block_height"`
-	RollupBlockHeight   uint64 `json:"rollup_block_height"`
-
-	BlockCreatorAddress     string `json:"block_creator_address"`
-	NextBlockCreatorAddress string `json:"next_block_creator_address"`
-}
-
-type FinalizeBlockParams struct {
-	Message   FinalizeBlockMessageParams `json:"finalize_block_message"`
-	Signature string                     `json:"signature"`
-}
-
-type GetRawTransactionsParams struct {
-	RollupId          string `json:"rollup_id"`
-	RollupBlockHeight uint64 `json:"rollup_block_height"`
-}
-
-type GetRawTransactionsResponse struct {
-	RawTransactions []string `json:"raw_transaction_list"`
-}
-
-var abiString string = `[
-		{
-      "inputs": [
-        {
-          "internalType": "string",
-          "name": "clusterId",
-          "type": "string"
-        }
-      ],
-      "name": "getTxOrderers",
-      "outputs": [
-        {
-          "internalType": "address[]",
-          "name": "",
-          "type": "address[]"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    }
-	]`

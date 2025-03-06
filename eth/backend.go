@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ledgerwatch/erigon/eth/sbbclient"
 	"io/fs"
 	"math/big"
 	"net"
@@ -240,7 +241,7 @@ type Ethereum struct {
 	stopNode           func() error
 	gasTracker         *jsonrpc.RecurringL1GasPriceTracker
 
-	sbbService      *SbbService
+	sbbClient       *sbbclient.SbbClient
 	blockCreationCh chan struct{}
 }
 
@@ -1188,7 +1189,7 @@ func New(ctx context.Context, stack *node.Node, config *ethconfig.Config, logger
 			fmt.Println("youngmin - useTxOrderer: ", config.UseTxOrderer)
 			if config.UseTxOrderer {
 				backend.blockCreationCh = make(chan struct{})
-				backend.sbbService, err = NewSbbService(ctx, backend)
+				backend.sbbClient, err = sbbclient.NewSbbClient(ctx, backend)
 				if err != nil {
 					return nil, err
 				}
@@ -1963,8 +1964,8 @@ func (s *Ethereum) Start() error {
 	// 	}
 	// }
 
-	if s.sbbService != nil {
-		s.sbbService.Start()
+	if s.sbbClient != nil {
+		s.sbbClient.Start()
 	}
 	return nil
 }

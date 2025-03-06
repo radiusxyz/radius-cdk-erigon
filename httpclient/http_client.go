@@ -1,4 +1,4 @@
-package sbbclient
+package httpclient
 
 import (
 	"bytes"
@@ -11,12 +11,12 @@ import (
 )
 
 // Client defines typed wrappers for the SBB RPC API.
-type SbbClient struct {
+type HttpClient struct {
 	httpClient *http.Client
 }
 
-func New() *SbbClient {
-	return &SbbClient{
+func New() *HttpClient {
+	return &HttpClient{
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 			Transport: &http.Transport{
@@ -41,13 +41,13 @@ func makeRequest(ctx context.Context, url string, body interface{}) (*http.Reque
 	return req, nil
 }
 
-func (sc *SbbClient) Send(ctx context.Context, url string, body interface{}, result any) error {
+func (h *HttpClient) Send(ctx context.Context, url string, body interface{}, result any) error {
 	req, err := makeRequest(ctx, url, body)
 	if err != nil {
 		return err
 	}
 
-	res, err := sc.httpClient.Do(req)
+	res, err := h.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
