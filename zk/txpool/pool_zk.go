@@ -143,7 +143,6 @@ func (p *TxPool) onSenderStateChange(senderID uint64, senderNonce uint64, sender
 		return true
 	})
 	for _, mt := range toDel {
-		fmt.Println("youngmin - discard: ", mt.seq)
 		discard(mt, NonceTooLow)
 	}
 }
@@ -310,7 +309,6 @@ func (p *TxPool) RemoveMinedTransactions(ctx context.Context, tx kv.Tx, blockGas
 
 	sendersWithChangedState := make(map[uint64]struct{})
 	for _, mt := range toDelete {
-		fmt.Println("youngmin - vvvvvvvv")
 		p.discardLocked(mt, Mined)
 		sendersWithChangedState[mt.Tx.SenderID] = struct{}{}
 	}
@@ -326,7 +324,6 @@ func (p *TxPool) RemoveMinedTransactions(ctx context.Context, tx kv.Tx, blockGas
 		if err != nil {
 			return err
 		}
-		fmt.Println("youngmin - bbbbbbbb")
 		p.onSenderStateChange(senderID, nonce, balance, p.all,
 			baseFee, blockGasLimit, p.pending, p.baseFee, p.queued, p.discardLocked)
 

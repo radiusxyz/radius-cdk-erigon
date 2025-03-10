@@ -469,7 +469,6 @@ func (p *TxPool) OnNewBlock(ctx context.Context, stateChanges *remote.StateChang
 			}
 		}
 	}
-	fmt.Println("youngmin - mmmmmmmmmm")
 	if err := removeMined(p.all, minedTxs.Txs, p.pending, p.baseFee, p.queued, p.discardLocked); err != nil {
 		return err
 	}
@@ -570,7 +569,6 @@ func (p *TxPool) processRemoteTxs(ctx context.Context) error {
 		return err
 	}
 
-	fmt.Println("youngmin - iiiiiiiiiiii")
 	announcements, _, err := p.addTxs(p.lastSeenBlock.Load(), cacheView, p.senders, newTxs,
 		p.pendingBaseFee.Load(), p.blockGasLimit.Load(), p.pending, p.baseFee, p.queued, p.all, p.byHash, p.addLocked, p.discardLocked, true)
 	if err != nil {
@@ -888,7 +886,6 @@ func (p *TxPool) validateTxs(txs *types.TxSlots, stateCache kvcache.CacheView) (
 		}
 		if reason == Spammer {
 			p.punishSpammer(txn.SenderID)
-			fmt.Println("youngmin - spammer: ", txn)
 		}
 		reasons[i] = reason
 	}
@@ -904,7 +901,6 @@ func (p *TxPool) validateTxs(txs *types.TxSlots, stateCache kvcache.CacheView) (
 			j++
 		}
 	}
-	fmt.Println("youngmin - totaltx: ", len(txs.Txs), " goodTxs: ", len(goodTxs.Txs))
 	return reasons, goodTxs, nil
 }
 
@@ -919,7 +915,6 @@ func (p *TxPool) punishSpammer(spammer uint64) {
 			return count > 0
 		})
 		for _, mt := range txsToDelete {
-			fmt.Println("youngmin - uuuuuuuuuu")
 			p.discardLocked(mt, Spammer) // can't call it while iterating by all
 		}
 	}
@@ -973,7 +968,6 @@ func (p *TxPool) AddLocalTxs(ctx context.Context, newTransactions types.TxSlots,
 		return nil, err
 	}
 
-	fmt.Println("youngmin - yyyyyyyyy")
 	announcements, addReasons, err := p.addTxs(p.lastSeenBlock.Load(), cacheView, p.senders, newTxs,
 		p.pendingBaseFee.Load(), p.blockGasLimit.Load(), p.pending, p.baseFee, p.queued, p.all, p.byHash, p.addLocked, p.discardLocked, true)
 	if err == nil {
@@ -1050,13 +1044,11 @@ func (p *TxPool) addTxs(blockNum uint64, cacheView kvcache.CacheView, senders *s
 			if collect && newTxs.IsLocal[i] && (found.currentSubPool == PendingSubPool || found.currentSubPool == BaseFeeSubPool) {
 				announcements.Append(found.Tx.Type, found.Tx.Size, found.Tx.IDHash[:])
 			}
-			fmt.Println("youngmin - duplicateHash")
 			continue
 		}
 		mt := newMetaTx(i, txn, newTxs.IsLocal[i], blockNum)
 		if reason := add(mt, &announcements); reason != NotSet {
 			discardReasons[i] = reason
-			fmt.Println("youngmin - add fail")
 			continue
 		}
 		discardReasons[i] = NotSet
@@ -1125,7 +1117,6 @@ func (p *TxPool) addTxsOnNewBlock(
 		}
 		mt := newMetaTx(i, txn, newTxs.IsLocal[i], blockNum)
 		if reason := add(mt, &announcements); reason != NotSet {
-			fmt.Println("youngmin - oooooooooooo")
 			discard(mt, reason)
 			sendersWithChangedStateBeforeLimboTrim.decrement(txn.SenderID)
 			continue
@@ -1193,9 +1184,7 @@ func (p *TxPool) addLocked(mt *metaTx, announcements *types.Announcements) Disca
 	// Insert to pending pool, if pool doesn't have txn with same Nonce and bigger Tip
 	found := p.all.get(mt.Tx.SenderID, mt.Tx.Nonce)
 	if found != nil {
-		fmt.Println("youngmin - addLocked found: ", found, " mt: ", mt)
 		if found.Tx.SenderID == mt.Tx.SenderID && found.Tx.Nonce == mt.Tx.Nonce {
-			fmt.Println("youngmin - already known")
 			return AlreadyKnown
 		}
 		tipThreshold := uint256.NewInt(0)
@@ -1227,27 +1216,21 @@ func (p *TxPool) addLocked(mt *metaTx, announcements *types.Announcements) Disca
 
 		switch found.currentSubPool {
 		case PendingSubPool:
-			fmt.Println("youngmin - removepending")
 			p.pending.Remove(found)
 		case BaseFeeSubPool:
-			fmt.Println("youngmin - removebasefee")
 			p.baseFee.Remove(found)
 		case QueuedSubPool:
-			fmt.Println("youngmin - removequeued")
 			p.queued.Remove(found)
 		default:
 			//already removed
 		}
 
-		fmt.Println("youngmin - ttttttttt")
 		p.discardLocked(found, ReplacedByHigherTip)
 	} else if p.pending.IsFull() {
-		fmt.Println("youngmin - pending is full")
 		// new transaction will be denied if pending pool is full unless it will replace an old transaction
 		return PendingPoolOverflow
 	}
 
-	fmt.Println("youngmin - kkkkkkkk: ", mt)
 	p.byHash[string(mt.Tx.IDHash[:])] = mt
 
 	if replaced := p.all.replaceOrInsert(mt); replaced != nil {
@@ -1255,7 +1238,6 @@ func (p *TxPool) addLocked(mt *metaTx, announcements *types.Announcements) Disca
 			panic("must never happen")
 		}
 	}
-	fmt.Println("youngmin - qqqqqqqqq: ", mt)
 	if mt.subPool&IsLocal != 0 {
 		p.isLocalLRU.Add(string(mt.Tx.IDHash[:]), struct{}{})
 	}
@@ -1271,7 +1253,6 @@ func (p *TxPool) discardLocked(mt *metaTx, reason DiscardReason) {
 	p.deletedTxs = append(p.deletedTxs, mt)
 	p.all.delete(mt)
 	p.discardReasonsLRU.Add(string(mt.Tx.IDHash[:]), reason)
-	fmt.Println("youngmin - discard tx: ", mt)
 }
 
 func (p *TxPool) NonceFromAddress(addr [20]byte) (nonce uint64, inPool bool) {
@@ -1340,21 +1321,17 @@ func removeMined(byNonce *BySenderAndNonce, minedTxs []*types.TxSlot, pending *P
 // promote reasserts invariants of the subpool and returns the list of transactions that ended up
 // being promoted to the pending or basefee pool, for re-broadcasting
 func promote(pending *PendingPool, baseFee, queued *SubPool, pendingBaseFee uint64, discard func(*metaTx, DiscardReason), announcements *types.Announcements) {
-	fmt.Println("youngmin - BaseFeePoolBits: ", pendingBaseFee)
 	// Demote worst transactions that do not qualify for pending sub pool anymore, to other sub pools, or discard
 	for worst := pending.Worst(); pending.Len() > 0 && (worst.subPool < BaseFeePoolBits || worst.minFeeCap.Cmp(uint256.NewInt(pendingBaseFee)) < 0); worst = pending.Worst() {
 		if worst.subPool >= BaseFeePoolBits {
-			fmt.Println("youngmin - 1111111111")
 			tx := pending.PopWorst()
 			announcements.Append(tx.Tx.Type, tx.Tx.Size, tx.Tx.IDHash[:])
 			//baseFee.Add(tx)
 			discard(tx, MissedPendingTx)
 		} else if worst.subPool >= QueuedPoolBits {
-			fmt.Println("youngmin - 22222222222")
 			//queued.Add(pending.PopWorst())
 			discard(pending.PopWorst(), MissedPendingTx)
 		} else {
-			fmt.Println("youngmin - 33333333333")
 			discard(pending.PopWorst(), FeeTooLow)
 		}
 	}
@@ -1375,19 +1352,13 @@ func promote(pending *PendingPool, baseFee, queued *SubPool, pendingBaseFee uint
 	//	}
 	//}
 
-	fmt.Println("youngmin - queued.Len(): ", queued.Len())
-	if queued.Len() > 0 {
-		fmt.Println("best.subPool: ", queued.Best().subPool)
-	}
 	// Promote best transactions from the queued pool to either pending or base fee pool, while they qualify
 	for best := queued.Best(); queued.Len() > 0 && best.subPool >= BaseFeePoolBits; best = queued.Best() {
 		if best.minFeeCap.Cmp(uint256.NewInt(pendingBaseFee)) >= 0 {
-			fmt.Println("youngmin - 44444444")
 			tx := queued.PopBest()
 			announcements.Append(tx.Tx.Type, tx.Tx.Size, tx.Tx.IDHash[:])
 			pending.Add(tx)
 		} else {
-			fmt.Println("youngmin - 55555555")
 			//baseFee.Add(queued.PopBest())
 			discard(queued.PopWorst(), MissedPendingTx)
 		}
@@ -1395,25 +1366,21 @@ func promote(pending *PendingPool, baseFee, queued *SubPool, pendingBaseFee uint
 
 	// Discard worst transactions from the queued sub pool if they do not qualify
 	for worst := queued.Worst(); queued.Len() > 0 && worst.subPool < QueuedPoolBits; worst = queued.Worst() {
-		fmt.Println("youngmin - 66666666")
 		discard(queued.PopWorst(), FeeTooLow)
 	}
 
 	// Discard worst transactions from pending pool until it is within capacity limit
 	for pending.Len() > pending.limit {
-		fmt.Println("youngmin - 7777777")
 		discard(pending.PopWorst(), PendingPoolOverflow)
 	}
 
 	// Discard worst transactions from pending sub pool until it is within capacity limits
 	for baseFee.Len() > baseFee.limit {
-		fmt.Println("youngmin - 88888888")
 		discard(baseFee.PopWorst(), BaseFeePoolOverflow)
 	}
 
 	// Discard worst transactions from the queued sub pool until it is within its capacity limits
 	for _ = queued.Worst(); queued.Len() > queued.limit; _ = queued.Worst() {
-		fmt.Println("youngmin - 999999999")
 		discard(queued.PopWorst(), QueuedPoolOverflow)
 	}
 }
@@ -1767,7 +1734,6 @@ func (p *TxPool) fromDB(ctx context.Context, tx kv.Tx, coreTx kv.Tx) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("youngmin - rrrrrrrrr")
 	if _, _, err := p.addTxs(p.lastSeenBlock.Load(), cacheView, p.senders, txs,
 		pendingBaseFee, math.MaxUint64 /* blockGasLimit */, p.pending, p.baseFee, p.queued, p.all, p.byHash, p.addLocked, p.discardLocked, false); err != nil {
 		return err
@@ -2390,7 +2356,6 @@ func (p *SubPool) Add(i *metaTx) {
 	i.currentSubPool = p.t
 	heap.Push(p.best, i)
 	heap.Push(p.worst, i)
-	fmt.Println("youngmin - 넣음")
 }
 
 func (p *SubPool) Remove(i *metaTx) {

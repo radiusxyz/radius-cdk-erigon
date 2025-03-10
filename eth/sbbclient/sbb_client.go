@@ -56,7 +56,7 @@ func NewSbbClient(ctx context.Context, blockchainService BlockchainService) (*Sb
 	httpClient := httpclient.New()
 	ethClient, _ := ethclient.Dial(blockchainService.Config().PlatformUrl) // TODO: error handling
 	sequencerPrivateKey, err := NewPrivateKeyFromHexKey(blockchainService.Config().SequencerPrivateKey)
-	fmt.Println("youngmin - sequencerPrivateKey: ", sequencerPrivateKey)
+	//fmt.Println("youngmin - sequencerPrivateKey: ", sequencerPrivateKey)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -231,7 +231,6 @@ func (s *GrpcServer) Add(ctx context.Context, in *txpool_proto.AddRequest) (*txp
 		return nil, err
 	}
 
-	fmt.Println("youngmin - total: ", len(reply.Imported), " discard count: ", len(discardReasons))
 	j = 0
 	//count := math.Min(float64(len(discardReasons)), float64(len(reply.Imported)))
 	//for i := 0; i < int(count); i++ {
@@ -254,13 +253,11 @@ func (s *GrpcServer) Add(ctx context.Context, in *txpool_proto.AddRequest) (*txp
 	for i := range reply.Imported {
 		if reply.Imported[i] != txpool_proto.ImportResult_SUCCESS {
 			j++
-			fmt.Println("stompesi - case 1 reply.Imported[i]: ", reply.Imported[i].String())
 			continue
 		}
 		reply.Imported[i] = mapDiscardReasonToProto(discardReasons[j])
 		reply.Errors[i] = discardReasons[j].String()
 		j++
-		fmt.Println("stompesi - case 2 reply.Imported[i]: ", " discard reason: ", reply.Errors[i])
 	}
 	return reply, nil
 }
