@@ -27,7 +27,7 @@ type TxOrdererRpcUrl struct {
 }
 
 type GetTxOrdererRpcUrlsResponse struct {
-	TxOrdererRpcUrls []TxOrdererRpcUrl `json:"tx_orderer_rpc_url_list"`
+	TxOrdererRpcUrls []TxOrdererRpcUrl `json:"tx_orderer_rpc_info_list"`
 }
 
 type FinalizeBlockMessageParams struct {
