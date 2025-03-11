@@ -21,7 +21,7 @@ type GetTxOrdererRpcUrlsParams struct {
 }
 
 type TxOrdererRpcUrl struct {
-	Address        string `json:"address"`
+	Address        string `json:"tx_orderer_address"`
 	ExternalRpcUrl string `json:"external_rpc_url"`
 	ClusterRpcUrl  string `json:"cluster_rpc_url"`
 }

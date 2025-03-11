@@ -26,7 +26,7 @@ type Method string
 const (
 	FinalizeBlock          Method = "finalize_block"
 	GetRawTransactionList  Method = "get_raw_transaction_list"
-	GetTxOrdererRpcUrlList Method = "get_tx_orderer_rpc_url_list"
+	GetTxOrdererRpcUrlList Method = "get_tx_orderer_rpc_info_list"
 )
 
 type BlockchainService interface {
