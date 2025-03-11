@@ -322,7 +322,7 @@ func (s *SbbClient) increaseLeaderTxOrdererIndex(txOrdererCount uint64, leaderTx
 func (s *SbbClient) finalizeBlock(ctx context.Context, platformBlockNumber uint64, txOrdererRpcUrls []string, leaderTxOrdererIndex *uint64, txOrdererAddresses []string) error {
 	if s.finalizedBlockNumber > s.preparedTxsBlockNumber {
 		log.Warn("Skip finalize block", "number", s.finalizedBlockNumber)
-		return nil
+		//return nil
 	}
 
 	txOrdererCount := len(txOrdererRpcUrls)
