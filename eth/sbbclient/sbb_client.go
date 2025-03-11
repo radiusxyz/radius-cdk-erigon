@@ -93,7 +93,7 @@ func (s *SbbClient) insertTransactions() {
 }
 
 func (s *SbbClient) requestToSbb() {
-	loopTime := int64(3000)
+	loopTime := int64(2000)
 	timer := time.NewTimer(time.Duration(loopTime) * time.Millisecond)
 
 	blockNumber, err := s.blockchainService.GetBlockNumber()
