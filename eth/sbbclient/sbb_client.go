@@ -117,7 +117,7 @@ func (s *SbbClient) requestToSbb() {
 			startTime := time.Now().UnixMilli()
 
 			var err error
-			if err = Retry(s.sbbCtx, func() error {
+			if err = RetryWithCount(s.sbbCtx, func() error {
 				platformBlockNumber, err = s.fetchPlatformBlockNumber(s.sbbCtx)
 				return err
 			}, 300*time.Millisecond, 10); err != nil {
@@ -154,7 +154,7 @@ func (s *SbbClient) requestToSbb() {
 				}
 				s.blockTransactionsCh <- &BlockTransactions{blockNumber: s.finalizedBlockNumber, transactions: transactions}
 				return nil
-			}, 100*time.Millisecond, 10); err != nil {
+			}, 100*time.Millisecond); err != nil {
 				log.Errorf("getRawTransactions error: %v", err)
 				timer.Reset(100 * time.Millisecond)
 				break
@@ -442,7 +442,7 @@ func (s *SbbClient) getRawTransactions(ctx context.Context, txOrdererRpcUrls []s
 	return nil, errors.New("no tx_orderer")
 }
 
-func Retry(ctx context.Context, fn func() error, retryInterval time.Duration, retryCount int) error {
+func RetryWithCount(ctx context.Context, fn func() error, retryInterval time.Duration, retryCount int) error {
 	for i := 0; i < retryCount; i++ {
 		select {
 		case <-ctx.Done():
@@ -457,6 +457,22 @@ func Retry(ctx context.Context, fn func() error, retryInterval time.Duration, re
 		time.Sleep(retryInterval)
 	}
 	return errors.New("the retry limit has been exceeded")
+}
+
+func Retry(ctx context.Context, fn func() error, retryInterval time.Duration) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+		}
+
+		err := fn()
+		if err == nil {
+			return nil
+		}
+		time.Sleep(retryInterval)
+	}
 }
 
 func Bytes2Hex(d []byte) string {
