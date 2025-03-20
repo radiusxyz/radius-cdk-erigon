@@ -105,6 +105,8 @@ type GrpcServer struct {
 	NewSlotsStreams *NewSlotsStreams
 
 	chainID uint256.Int
+
+	useTxOrderer bool
 }
 
 func NewGrpcServer(ctx context.Context, txPool txPool, db kv.RoDB, chainID uint256.Int) *GrpcServer {
