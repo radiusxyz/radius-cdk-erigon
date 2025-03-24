@@ -146,7 +146,7 @@ func (s *SbbClient) requestToSbb() {
 
 			time.Sleep(300 * time.Millisecond)
 
-			if err = Retry(s.sbbCtx, func() error {
+			if err = RetryWithCount(s.sbbCtx, func() error {
 				transactions, err := s.getRawTransactions(s.sbbCtx, txOrdererRpcUrls, leaderTxOrdererIndex)
 				if err != nil {
 					log.Errorf("failed to get raw transactions, error: %v", err)
@@ -154,7 +154,7 @@ func (s *SbbClient) requestToSbb() {
 				}
 				s.blockTransactionsCh <- &BlockTransactions{blockNumber: s.finalizedBlockNumber, transactions: transactions}
 				return nil
-			}, 100*time.Millisecond); err != nil {
+			}, 100*time.Millisecond, 600); err != nil {
 				log.Errorf("getRawTransactions error: %v", err)
 				timer.Reset(100 * time.Millisecond)
 				break
