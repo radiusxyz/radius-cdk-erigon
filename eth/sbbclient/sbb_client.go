@@ -37,19 +37,16 @@ type BlockchainService interface {
 }
 
 type BlockTransactions struct {
-	blockNumber  uint64
 	transactions [][]byte
 }
 
 type SbbClient struct {
-	httpClient             *httpclient.HttpClient
-	ethClient              *ethclient.Client
-	blockchainService      BlockchainService
-	sequencerPrivateKey    *ecdsa.PrivateKey
-	blockTransactionsCh    chan *BlockTransactions
-	sbbCtx                 context.Context
-	finalizedBlockNumber   uint64
-	preparedTxsBlockNumber uint64
+	httpClient          *httpclient.HttpClient
+	ethClient           *ethclient.Client
+	blockchainService   BlockchainService
+	sequencerPrivateKey *ecdsa.PrivateKey
+	blockTransactionsCh chan *BlockTransactions
+	sbbCtx              context.Context
 }
 
 func NewSbbClient(ctx context.Context, blockchainService BlockchainService) (*SbbClient, error) {
@@ -96,16 +93,6 @@ func (s *SbbClient) requestToSbb() {
 	loopTime := int64(2000)
 	timer := time.NewTimer(time.Duration(loopTime) * time.Millisecond)
 
-	blockNumber, err := s.blockchainService.GetBlockNumber()
-	if err != nil {
-		panic(err.Error())
-	}
-	if *blockNumber == 0 {
-		*blockNumber = 1
-	}
-	s.finalizedBlockNumber = *blockNumber + 1
-	s.preparedTxsBlockNumber = *blockNumber + 1
-
 	var platformBlockNumber *uint64
 	var validTxOrdererAddresses []string
 	var txOrdererRpcUrls []string
@@ -127,8 +114,13 @@ func (s *SbbClient) requestToSbb() {
 			}
 
 			requestPlatformBlockNumber := *platformBlockNumber - 6
+			blockNumber, err := s.blockchainService.GetBlockNumber()
+			if err != nil {
+				timer.Reset(100 * time.Millisecond)
+				break
+			}
 
-			validTxOrdererAddresses, txOrdererRpcUrls, leaderTxOrdererIndex, err = s.fetchTxOrdererInfo(s.sbbCtx, requestPlatformBlockNumber, s.finalizedBlockNumber+1)
+			validTxOrdererAddresses, txOrdererRpcUrls, leaderTxOrdererIndex, err = s.fetchTxOrdererInfo(s.sbbCtx, requestPlatformBlockNumber, *blockNumber+1)
 			if err != nil {
 				log.Errorf("failed to fetch tx_orderer info, error: %v", err)
 				timer.Reset(100 * time.Millisecond)
@@ -137,29 +129,6 @@ func (s *SbbClient) requestToSbb() {
 
 			log.Debug("Successfully updated tx_orderer info")
 
-			//err = s.finalizeBlock(s.sbbCtx, requestPlatformBlockNumber, txOrdererRpcUrls, leaderTxOrdererIndex, validTxOrdererAddresses)
-			//if err != nil {
-			//	log.Errorf("failed to finalize block, error: %v", err)
-			//	timer.Reset(100 * time.Millisecond)
-			//	break
-			//}
-			//
-			//time.Sleep(300 * time.Millisecond)
-
-			//if err = RetryWithCount(s.sbbCtx, func() error {
-			//	transactions, err := s.getRawTransactions(s.sbbCtx, txOrdererRpcUrls, leaderTxOrdererIndex)
-			//	if err != nil {
-			//		log.Errorf("failed to get raw transactions, error: %v", err)
-			//		return err
-			//	}
-			//	s.blockTransactionsCh <- &BlockTransactions{blockNumber: s.finalizedBlockNumber, transactions: transactions}
-			//	return nil
-			//}, 100*time.Millisecond, 600); err != nil {
-			//	log.Errorf("getRawTransactions error: %v", err)
-			//	timer.Reset(100 * time.Millisecond)
-			//	break
-			//}
-
 			transactions, err := s.getRawTransactions(s.sbbCtx, txOrdererRpcUrls, leaderTxOrdererIndex, validTxOrdererAddresses, requestPlatformBlockNumber)
 			if err != nil {
 				log.Errorf("failed to get raw transactions, error: %v", err)
@@ -167,7 +136,7 @@ func (s *SbbClient) requestToSbb() {
 				break
 			}
 
-			s.blockTransactionsCh <- &BlockTransactions{blockNumber: s.finalizedBlockNumber, transactions: transactions}
+			s.blockTransactionsCh <- &BlockTransactions{transactions: transactions}
 
 			endTime := time.Now().UnixMilli()
 			duration := endTime - startTime
@@ -194,7 +163,7 @@ func (s *SbbClient) fetchPlatformBlockNumber(ctx context.Context) (*uint64, erro
 	return &platformBlockNumber, nil
 }
 
-func (s *SbbClient) fetchTxOrdererInfo(ctx context.Context, platformBlockNumber uint64, finalizeBlockNumber uint64) ([]string, []string, *uint64, error) {
+func (s *SbbClient) fetchTxOrdererInfo(ctx context.Context, platformBlockNumber uint64, blockNumber uint64) ([]string, []string, *uint64, error) {
 	txOrdererAddresses, err := s.fetchTxOrdererAddresses(ctx, platformBlockNumber)
 	if err != nil {
 		log.Error("failed to fetch tx_orderer addresses ", "error ", err.Error())
@@ -209,7 +178,7 @@ func (s *SbbClient) fetchTxOrdererInfo(ctx context.Context, platformBlockNumber 
 
 	log.Debug("Successfully fetched tx_orderer info", " txOrdererAddresses: ", txOrdererAddresses, " txOrdererRpcUrls: ", txOrdererRpcUrls)
 
-	leaderTxOrdererIndex, err := s.getLeaderTxOrdererIndex(finalizeBlockNumber, txOrdererRpcUrls)
+	leaderTxOrdererIndex, err := s.getLeaderTxOrdererIndex(blockNumber, txOrdererRpcUrls)
 	if err != nil {
 		log.Error("failed to get leader tx_orderer index ", "error ", err.Error())
 		return nil, nil, nil, err
@@ -328,81 +297,6 @@ func (s *SbbClient) increaseLeaderTxOrdererIndex(txOrdererCount uint64, leaderTx
 	return nil
 }
 
-func (s *SbbClient) finalizeBlock(ctx context.Context, platformBlockNumber uint64, txOrdererRpcUrls []string, leaderTxOrdererIndex *uint64, txOrdererAddresses []string) error {
-	if s.finalizedBlockNumber > s.preparedTxsBlockNumber {
-		log.Warn("Skip finalize block", "number", s.finalizedBlockNumber)
-		//return nil
-	}
-
-	txOrdererCount := len(txOrdererRpcUrls)
-
-	for i := 0; i < txOrdererCount; i++ {
-		nextTxOrdererIndex, err := s.getNextLeaderTxOrdererIndex(uint64(txOrdererCount), *leaderTxOrdererIndex)
-		if err != nil {
-			return err
-		}
-
-		finalizingBlockNumber := s.finalizedBlockNumber + 1
-		message := FinalizeBlockMessageParams{
-			RollupId:                s.blockchainService.Config().RollupId,
-			ExecutorAddress:         "0xE34aaF64b29273B7D567FCFc40544c014EEe9970",
-			PlatformBlockHeight:     platformBlockNumber,
-			RollupBlockHeight:       finalizingBlockNumber,
-			BlockCreatorAddress:     strings.ToLower(txOrdererAddresses[*leaderTxOrdererIndex]),
-			NextBlockCreatorAddress: strings.ToLower(txOrdererAddresses[*nextTxOrdererIndex]),
-		}
-
-		messageBytes, err := json.Marshal(message)
-		if err != nil {
-			log.Error("Error converting message to bytes: %v", err)
-			return err
-		}
-
-		h := keccak256.Hash(messageBytes)
-
-		signature, err := crypto.Sign(h, s.sequencerPrivateKey)
-		if err != nil {
-			log.Error("Error signing message: %v", err)
-			return err
-		}
-
-		params := FinalizeBlockParams{
-			Message:   message,
-			Signature: "0x" + Bytes2Hex(signature),
-		}
-		fmt.Println("youngmin - params: ", params.Signature)
-		log.Debug("Finalizing the contents to be included in the block", "block number: ", finalizingBlockNumber)
-
-		body := newJsonRpcRequest(FinalizeBlock, params)
-
-		reqCtx, reqCancel := context.WithTimeout(ctx, 10*time.Second)
-		defer reqCancel()
-
-		if err = s.httpClient.Send(reqCtx, txOrdererRpcUrls[*leaderTxOrdererIndex], body, nil); err != nil {
-			if !strings.Contains(err.Error(), "connection refused") {
-				return fmt.Errorf("failed to send finalize_block request to SBB: %s request params: platformHeight %d rollupHeight %d url %s now %d", err.Error(), message.PlatformBlockHeight, message.RollupBlockHeight, txOrdererRpcUrls[*leaderTxOrdererIndex], time.Now().UnixMilli())
-			}
-
-			log.Warn("failed to finalizing due to no tx_orderer found. retrying with a different tx_orderer")
-
-			if err = s.increaseLeaderTxOrdererIndex(uint64(txOrdererCount), leaderTxOrdererIndex); err != nil {
-				return err
-			}
-
-			log.Debug("stopesi - Error", err)
-
-			continue
-		}
-
-		s.finalizedBlockNumber = finalizingBlockNumber
-		log.Debug("Successfully finalized the contents to be included in the block. ", "block number: ", s.finalizedBlockNumber, " now: ", time.Now().UnixMilli())
-
-		return nil
-	}
-
-	return errors.New("no tx_orderer")
-}
-
 func (s *SbbClient) getRawTransactions(ctx context.Context, txOrdererRpcUrls []string, leaderTxOrdererIndex *uint64, txOrdererAddresses []string, platformBlockHeight uint64) ([][]byte, error) {
 	reqCtx, reqCancel := context.WithTimeout(ctx, 10*time.Second)
 	defer reqCancel()
@@ -469,9 +363,7 @@ func (s *SbbClient) getRawTransactions(ctx context.Context, txOrdererRpcUrls []s
 			encodedTxs = append(encodedTxs, binary)
 		}
 
-		s.preparedTxsBlockNumber = s.finalizedBlockNumber
-
-		log.Info("Transaction processing succeeded.", "tx count: ", len(encodedTxs), " block num: ", s.preparedTxsBlockNumber, " now: ", time.Now().UnixMilli())
+		log.Info("Transaction processing succeeded.", "tx count: ", len(encodedTxs), " now: ", time.Now().UnixMilli())
 
 		return encodedTxs, nil
 	}
