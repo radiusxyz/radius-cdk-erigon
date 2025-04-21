@@ -1987,7 +1987,6 @@ func (p *TxPool) purge() {
 			//already removed
 		}
 
-		fmt.Println("wwwwwwwwwww")
 		p.discardLocked(mt, Expired)
 
 		// do not hold on to the discard reason as we're purging it completely from the pool and an end user
