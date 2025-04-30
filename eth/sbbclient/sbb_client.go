@@ -26,7 +26,7 @@ type Method string
 const (
 	FinalizeBlock          Method = "finalize_block"
 	GetRawTransactionList  Method = "get_raw_transaction_list"
-	GetTxOrdererRpcUrlList Method = "get_tx_orderer_rpc_info_list"
+	GetTxOrdererRpcUrlList Method = "get_sequencer_rpc_url_list"
 )
 
 type BlockchainService interface {
@@ -237,7 +237,7 @@ func (s *SbbClient) fetchTxOrdererAddresses(ctx context.Context, platformBlockNu
 		return nil, err
 	}
 
-	METHOD := "getTxOrderers"
+	METHOD := "getSequencers"
 	contractAddress := common.HexToAddress(s.blockchainService.Config().LivenessContractAddress)
 
 	data, err := contractAbi.Pack(METHOD, s.blockchainService.Config().ClusterId)

@@ -17,17 +17,17 @@ func newJsonRpcRequest[T any](method Method, params T) JSONRPCRequest[T] {
 }
 
 type GetTxOrdererRpcUrlsParams struct {
-	TxOrdererAddresses []string `json:"tx_orderer_address_list"`
+	TxOrdererAddresses []string `json:"sequencer_address_list"`
 }
 
 type TxOrdererRpcUrl struct {
-	Address        string `json:"tx_orderer_address"`
+	Address        string `json:"address"`
 	ExternalRpcUrl string `json:"external_rpc_url"`
 	ClusterRpcUrl  string `json:"cluster_rpc_url"`
 }
 
 type GetTxOrdererRpcUrlsResponse struct {
-	TxOrdererRpcUrls []TxOrdererRpcUrl `json:"tx_orderer_rpc_info_list"`
+	TxOrdererRpcUrls []TxOrdererRpcUrl `json:"sequencer_rpc_url_list"`
 }
 
 type FinalizeBlockMessageParams struct {
