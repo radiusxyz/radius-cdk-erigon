@@ -150,6 +150,7 @@ const (
 	SmartContractDeploymentDisabled DiscardReason = 28 // to == null not allowed, config set to block smart contract deployment
 	GasLimitTooHigh                 DiscardReason = 29 // gas limit is too high
 	Expired                         DiscardReason = 30 // used when a transaction is purged from the pool
+	MissedPendingTx                 DiscardReason = 31 // Radius
 )
 
 func (r DiscardReason) String() string {
@@ -214,6 +215,8 @@ func (r DiscardReason) String() string {
 		return "smart contract deployment disabled"
 	case GasLimitTooHigh:
 		return fmt.Sprintf("gas limit too high. Max: %d", transactionGasLimit)
+	case MissedPendingTx:
+		return "missed pending tx"
 	default:
 		panic(fmt.Sprintf("discard reason: %d", r))
 	}
@@ -221,6 +224,7 @@ func (r DiscardReason) String() string {
 
 // metaTx holds transaction and some metadata
 type metaTx struct {
+	seq                       *int
 	Tx                        *types.TxSlot
 	minFeeCap                 uint256.Int
 	nonceDistance             uint64 // how far their nonces are from the state's nonce for the sender
@@ -235,8 +239,8 @@ type metaTx struct {
 	alreadyYielded            bool
 }
 
-func newMetaTx(slot *types.TxSlot, isLocal bool, timestmap uint64) *metaTx {
-	mt := &metaTx{Tx: slot, worstIndex: -1, bestIndex: -1, timestamp: timestmap, created: uint64(time.Now().Unix())}
+func newMetaTx(seq *int, slot *types.TxSlot, isLocal bool, timestmap uint64) *metaTx {
+	mt := &metaTx{seq: seq, Tx: slot, worstIndex: -1, bestIndex: -1, timestamp: timestmap, created: uint64(time.Now().Unix())}
 	if isLocal {
 		mt.subPool = IsLocal
 	}
@@ -337,6 +341,8 @@ type TxPool struct {
 	limbo *Limbo
 
 	logLevel log.Lvl
+
+	useTxOrderer bool
 }
 
 func CreateTxPoolBuckets(tx kv.RwTx) error {
@@ -398,6 +404,10 @@ func New(newTxs chan types.Announcements, coreDB kv.RoDB, cfg txpoolcfg.Config, 
 		limbo:                   newLimbo(),
 		logLevel:                logLevel,
 	}, nil
+}
+
+func (p *TxPool) SetUseTxOrderer(useTxOrderer bool) {
+	p.useTxOrderer = useTxOrderer
 }
 
 func (p *TxPool) OnNewBlock(ctx context.Context, stateChanges *remote.StateChangeBatch, unwindTxs, minedTxs types.TxSlots, tx kv.Tx) error {
@@ -525,7 +535,12 @@ func (p *TxPool) OnNewBlock(ctx context.Context, stateChanges *remote.StateChang
 	}
 
 	for idx, slot := range forDiscard.Txs {
-		mt := newMetaTx(slot, forDiscard.IsLocal[idx], blockNum)
+		var mt *metaTx
+		if p.useTxOrderer {
+			mt = newMetaTx(&idx, slot, forDiscard.IsLocal[idx], blockNum)
+		} else {
+			mt = newMetaTx(nil, slot, forDiscard.IsLocal[idx], blockNum)
+		}
 		p.discardLocked(mt, DiscardByLimbo)
 		log.Info("[txpool] Discarding", "tx-hash", hexutils.BytesToHex(slot.IDHash[:]))
 	}
@@ -1051,7 +1066,14 @@ func (p *TxPool) addTxs(blockNum uint64, cacheView kvcache.CacheView, senders *s
 			}
 			continue
 		}
-		mt := newMetaTx(txn, newTxs.IsLocal[i], blockNum)
+
+		var mt *metaTx
+		if p.useTxOrderer {
+			mt = newMetaTx(&i, txn, newTxs.IsLocal[i], blockNum)
+		} else {
+			mt = newMetaTx(nil, txn, newTxs.IsLocal[i], blockNum)
+		}
+
 		if reason := add(mt, &announcements); reason != NotSet {
 			discardReasons[i] = reason
 			continue
@@ -1074,7 +1096,11 @@ func (p *TxPool) addTxs(blockNum uint64, cacheView kvcache.CacheView, senders *s
 			protocolBaseFee, blockGasLimit, pending, baseFee, queued, discard)
 	}
 
-	promote(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
+	if p.useTxOrderer {
+		promoteForTxOrderer(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
+	} else {
+		promote(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
+	}
 
 	return announcements, discardReasons, nil
 }
@@ -1120,7 +1146,14 @@ func (p *TxPool) addTxsOnNewBlock(
 			sendersWithChangedStateBeforeLimboTrim.decrement(txn.SenderID)
 			continue
 		}
-		mt := newMetaTx(txn, newTxs.IsLocal[i], blockNum)
+
+		var mt *metaTx
+		if p.useTxOrderer {
+			mt = newMetaTx(&i, txn, newTxs.IsLocal[i], blockNum)
+		} else {
+			mt = newMetaTx(nil, txn, newTxs.IsLocal[i], blockNum)
+		}
+
 		if reason := add(mt, &announcements); reason != NotSet {
 			discard(mt, reason)
 			sendersWithChangedStateBeforeLimboTrim.decrement(txn.SenderID)
@@ -1164,7 +1197,11 @@ func (p *TxPool) addTxsOnNewBlock(
 			protocolBaseFee, blockGasLimit, pending, baseFee, queued, discard)
 	}
 
-	promote(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
+	if p.useTxOrderer {
+		promoteForTxOrderer(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
+	} else {
+		promote(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
+	}
 
 	return announcements, nil
 }
@@ -1189,6 +1226,9 @@ func (p *TxPool) addLocked(mt *metaTx, announcements *types.Announcements) Disca
 	// Insert to pending pool, if pool doesn't have txn with same Nonce and bigger Tip
 	found := p.all.get(mt.Tx.SenderID, mt.Tx.Nonce)
 	if found != nil {
+		if found.Tx.SenderID == mt.Tx.SenderID && found.Tx.Nonce == mt.Tx.Nonce {
+			return AlreadyKnown
+		}
 		tipThreshold := uint256.NewInt(0)
 		tipThreshold = tipThreshold.Mul(&found.Tx.Tip, uint256.NewInt(100+p.cfg.PriceBump))
 		tipThreshold.Div(tipThreshold, u256.N100)
@@ -1362,6 +1402,73 @@ func promote(pending *PendingPool, baseFee, queued *SubPool, pendingBaseFee uint
 			pending.Add(tx)
 		} else {
 			baseFee.Add(queued.PopBest())
+		}
+	}
+
+	// Discard worst transactions from the queued sub pool if they do not qualify
+	for worst := queued.Worst(); queued.Len() > 0 && worst.subPool < QueuedPoolBits; worst = queued.Worst() {
+		discard(queued.PopWorst(), FeeTooLow)
+	}
+
+	// Discard worst transactions from pending pool until it is within capacity limit
+	for pending.Len() > pending.limit {
+		discard(pending.PopWorst(), PendingPoolOverflow)
+	}
+
+	// Discard worst transactions from pending sub pool until it is within capacity limits
+	for baseFee.Len() > baseFee.limit {
+		discard(baseFee.PopWorst(), BaseFeePoolOverflow)
+	}
+
+	// Discard worst transactions from the queued sub pool until it is within its capacity limits
+	for _ = queued.Worst(); queued.Len() > queued.limit; _ = queued.Worst() {
+		discard(queued.PopWorst(), QueuedPoolOverflow)
+	}
+}
+
+// promote reasserts invariants of the subpool and returns the list of transactions that ended up
+// being promoted to the pending or basefee pool, for re-broadcasting
+func promoteForTxOrderer(pending *PendingPool, baseFee, queued *SubPool, pendingBaseFee uint64, discard func(*metaTx, DiscardReason), announcements *types.Announcements) {
+	// Demote worst transactions that do not qualify for pending sub pool anymore, to other sub pools, or discard
+	for worst := pending.Worst(); pending.Len() > 0 && (worst.subPool < BaseFeePoolBits || worst.minFeeCap.Cmp(uint256.NewInt(pendingBaseFee)) < 0); worst = pending.Worst() {
+		if worst.subPool >= BaseFeePoolBits {
+			tx := pending.PopWorst()
+			announcements.Append(tx.Tx.Type, tx.Tx.Size, tx.Tx.IDHash[:])
+			//baseFee.Add(tx)
+			discard(tx, MissedPendingTx)
+		} else if worst.subPool >= QueuedPoolBits {
+			//queued.Add(pending.PopWorst())
+			discard(pending.PopWorst(), MissedPendingTx)
+		} else {
+			discard(pending.PopWorst(), FeeTooLow)
+		}
+	}
+
+	//// Promote best transactions from base fee pool to pending pool while they qualify
+	//for best := baseFee.Best(); baseFee.Len() > 0 && best.subPool >= BaseFeePoolBits && best.minFeeCap.Cmp(uint256.NewInt(pendingBaseFee)) >= 0; best = baseFee.Best() {
+	//	tx := baseFee.PopBest()
+	//	announcements.Append(tx.Tx.Type, tx.Tx.Size, tx.Tx.IDHash[:])
+	//	pending.Add(tx)
+	//}
+	//
+	//// Demote worst transactions that do not qualify for base fee pool anymore, to queued sub pool, or discard
+	//for worst := baseFee.Worst(); baseFee.Len() > 0 && worst.subPool < BaseFeePoolBits; worst = baseFee.Worst() {
+	//	if worst.subPool >= QueuedPoolBits {
+	//		queued.Add(baseFee.PopWorst())
+	//	} else {
+	//		discard(baseFee.PopWorst(), FeeTooLow)
+	//	}
+	//}
+
+	// Promote best transactions from the queued pool to either pending or base fee pool, while they qualify
+	for best := queued.Best(); queued.Len() > 0 && best.subPool >= BaseFeePoolBits; best = queued.Best() {
+		if best.minFeeCap.Cmp(uint256.NewInt(pendingBaseFee)) >= 0 {
+			tx := queued.PopBest()
+			announcements.Append(tx.Tx.Type, tx.Tx.Size, tx.Tx.IDHash[:])
+			pending.Add(tx)
+		} else {
+			//baseFee.Add(queued.PopBest())
+			discard(queued.PopWorst(), MissedPendingTx)
 		}
 	}
 
@@ -2384,100 +2491,122 @@ type BestQueue struct {
 }
 
 func (mt *metaTx) better(than *metaTx, pendingBaseFee uint256.Int) bool {
-	subPool := mt.subPool
-	thanSubPool := than.subPool
-	if mt.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
-		subPool |= EnoughFeeCapBlock
-	}
-	if than.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
-		thanSubPool |= EnoughFeeCapBlock
-	}
-	if subPool != thanSubPool {
-		return subPool > thanSubPool
-	}
-
-	switch mt.currentSubPool {
-	case PendingSubPool:
-		var effectiveTip, thanEffectiveTip uint256.Int
+	// useTxOrderer
+	if mt.seq != nil {
+		if mt.created != than.created {
+			return mt.created < than.created
+		}
+		if *mt.seq != *than.seq {
+			return *mt.seq < *than.seq
+		}
+		return mt.nonceDistance < than.nonceDistance
+	} else {
+		subPool := mt.subPool
+		thanSubPool := than.subPool
 		if mt.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
-			difference := uint256.NewInt(0)
-			difference.Sub(&mt.minFeeCap, &pendingBaseFee)
-			if difference.Cmp(uint256.NewInt(mt.minTip)) <= 0 {
-				effectiveTip = *difference
-			} else {
-				effectiveTip = *uint256.NewInt(mt.minTip)
-			}
+			subPool |= EnoughFeeCapBlock
 		}
 		if than.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
-			difference := uint256.NewInt(0)
-			difference.Sub(&than.minFeeCap, &pendingBaseFee)
-			if difference.Cmp(uint256.NewInt(than.minTip)) <= 0 {
-				thanEffectiveTip = *difference
-			} else {
-				thanEffectiveTip = *uint256.NewInt(than.minTip)
+			thanSubPool |= EnoughFeeCapBlock
+		}
+		if subPool != thanSubPool {
+			return subPool > thanSubPool
+		}
+
+		switch mt.currentSubPool {
+		case PendingSubPool:
+			var effectiveTip, thanEffectiveTip uint256.Int
+			if mt.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
+				difference := uint256.NewInt(0)
+				difference.Sub(&mt.minFeeCap, &pendingBaseFee)
+				if difference.Cmp(uint256.NewInt(mt.minTip)) <= 0 {
+					effectiveTip = *difference
+				} else {
+					effectiveTip = *uint256.NewInt(mt.minTip)
+				}
+			}
+			if than.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
+				difference := uint256.NewInt(0)
+				difference.Sub(&than.minFeeCap, &pendingBaseFee)
+				if difference.Cmp(uint256.NewInt(than.minTip)) <= 0 {
+					thanEffectiveTip = *difference
+				} else {
+					thanEffectiveTip = *uint256.NewInt(than.minTip)
+				}
+			}
+			if effectiveTip.Cmp(&thanEffectiveTip) != 0 {
+				return effectiveTip.Cmp(&thanEffectiveTip) > 0
+			}
+			// Compare nonce and cumulative balance. Just as a side note, it doesn't
+			// matter if they're from same sender or not because we're comparing
+			// nonce distance of the sender from state's nonce and not the actual
+			// value of nonce.
+			if mt.nonceDistance != than.nonceDistance {
+				return mt.nonceDistance < than.nonceDistance
+			}
+			if mt.cumulativeBalanceDistance != than.cumulativeBalanceDistance {
+				return mt.cumulativeBalanceDistance < than.cumulativeBalanceDistance
+			}
+		case BaseFeeSubPool:
+			if mt.minFeeCap.Cmp(&than.minFeeCap) != 0 {
+				return mt.minFeeCap.Cmp(&than.minFeeCap) > 0
+			}
+		case QueuedSubPool:
+			if mt.nonceDistance != than.nonceDistance {
+				return mt.nonceDistance < than.nonceDistance
+			}
+			if mt.cumulativeBalanceDistance != than.cumulativeBalanceDistance {
+				return mt.cumulativeBalanceDistance < than.cumulativeBalanceDistance
 			}
 		}
-		if effectiveTip.Cmp(&thanEffectiveTip) != 0 {
-			return effectiveTip.Cmp(&thanEffectiveTip) > 0
-		}
-		// Compare nonce and cumulative balance. Just as a side note, it doesn't
-		// matter if they're from same sender or not because we're comparing
-		// nonce distance of the sender from state's nonce and not the actual
-		// value of nonce.
-		if mt.nonceDistance != than.nonceDistance {
-			return mt.nonceDistance < than.nonceDistance
-		}
-		if mt.cumulativeBalanceDistance != than.cumulativeBalanceDistance {
-			return mt.cumulativeBalanceDistance < than.cumulativeBalanceDistance
-		}
-	case BaseFeeSubPool:
-		if mt.minFeeCap.Cmp(&than.minFeeCap) != 0 {
-			return mt.minFeeCap.Cmp(&than.minFeeCap) > 0
-		}
-	case QueuedSubPool:
-		if mt.nonceDistance != than.nonceDistance {
-			return mt.nonceDistance < than.nonceDistance
-		}
-		if mt.cumulativeBalanceDistance != than.cumulativeBalanceDistance {
-			return mt.cumulativeBalanceDistance < than.cumulativeBalanceDistance
-		}
+		return mt.timestamp < than.timestamp
 	}
-	return mt.timestamp < than.timestamp
 }
 
 func (mt *metaTx) worse(than *metaTx, pendingBaseFee uint256.Int) bool {
-	subPool := mt.subPool
-	thanSubPool := than.subPool
-	if mt.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
-		subPool |= EnoughFeeCapBlock
-	}
-	if than.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
-		thanSubPool |= EnoughFeeCapBlock
-	}
-	if subPool != thanSubPool {
-		return subPool < thanSubPool
-	}
+	// useTxOrderer
+	if mt.seq != nil {
+		if mt.created != than.created {
+			return mt.created > than.created
+		}
+		if *mt.seq != *than.seq {
+			return *mt.seq > *than.seq
+		}
+		return mt.nonceDistance > than.nonceDistance
+	} else {
+		subPool := mt.subPool
+		thanSubPool := than.subPool
+		if mt.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
+			subPool |= EnoughFeeCapBlock
+		}
+		if than.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
+			thanSubPool |= EnoughFeeCapBlock
+		}
+		if subPool != thanSubPool {
+			return subPool < thanSubPool
+		}
 
-	switch mt.currentSubPool {
-	case PendingSubPool:
-		if mt.minFeeCap != than.minFeeCap {
-			return mt.minFeeCap.Cmp(&than.minFeeCap) < 0
+		switch mt.currentSubPool {
+		case PendingSubPool:
+			if mt.minFeeCap != than.minFeeCap {
+				return mt.minFeeCap.Cmp(&than.minFeeCap) < 0
+			}
+			if mt.nonceDistance != than.nonceDistance {
+				return mt.nonceDistance > than.nonceDistance
+			}
+			if mt.cumulativeBalanceDistance != than.cumulativeBalanceDistance {
+				return mt.cumulativeBalanceDistance > than.cumulativeBalanceDistance
+			}
+		case BaseFeeSubPool, QueuedSubPool:
+			if mt.nonceDistance != than.nonceDistance {
+				return mt.nonceDistance > than.nonceDistance
+			}
+			if mt.cumulativeBalanceDistance != than.cumulativeBalanceDistance {
+				return mt.cumulativeBalanceDistance > than.cumulativeBalanceDistance
+			}
 		}
-		if mt.nonceDistance != than.nonceDistance {
-			return mt.nonceDistance > than.nonceDistance
-		}
-		if mt.cumulativeBalanceDistance != than.cumulativeBalanceDistance {
-			return mt.cumulativeBalanceDistance > than.cumulativeBalanceDistance
-		}
-	case BaseFeeSubPool, QueuedSubPool:
-		if mt.nonceDistance != than.nonceDistance {
-			return mt.nonceDistance > than.nonceDistance
-		}
-		if mt.cumulativeBalanceDistance != than.cumulativeBalanceDistance {
-			return mt.cumulativeBalanceDistance > than.cumulativeBalanceDistance
-		}
+		return mt.timestamp > than.timestamp
 	}
-	return mt.timestamp > than.timestamp
 }
 
 func (p BestQueue) Len() int { return len(p.ms) }

@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ledgerwatch/erigon/eth/sbbclient"
 	"io/fs"
 	"math/big"
 	"net"
@@ -243,6 +244,9 @@ type Ethereum struct {
 	polygonSyncService polygonsync.Service
 	stopNode           func() error
 	gasTracker         *jsonrpc.RecurringL1GasPriceTracker
+
+	sbbClient       *sbbclient.SbbClient
+	blockCreationCh chan struct{}
 }
 
 func splitAddrIntoHostAndPort(addr string) (host string, port int, err error) {
@@ -664,7 +668,7 @@ func New(ctx context.Context, stack *node.Node, config *ethconfig.Config, logger
 		backend.newTxs2 = make(chan libtypes.Announcements, 1024)
 		//defer close(newTxs)
 		backend.txPool2DB, backend.txPool2, backend.txPool2Fetch, backend.txPool2Send, backend.txPool2GrpcServer, err = txpooluitl.AllComponents(
-			ctx, config.TxPool, config, kvcache.NewDummy(), backend.newTxs2, backend.chainDB, backend.sentriesClient.Sentries(), stateDiffClient,
+			ctx, config.TxPool, config, kvcache.NewDummy(), backend.newTxs2, backend.chainDB, backend.sentriesClient.Sentries(), stateDiffClient, &config.UseTxOrderer,
 		)
 		if err != nil {
 			return nil, err
@@ -1188,6 +1192,14 @@ func New(ctx context.Context, stack *node.Node, config *ethconfig.Config, logger
 				cfg.L1HighestBlockType,
 			)
 
+			if config.UseTxOrderer {
+				backend.blockCreationCh = make(chan struct{})
+				backend.sbbClient, err = sbbclient.NewSbbClient(ctx, backend)
+				if err != nil {
+					return nil, err
+				}
+			}
+
 			backend.syncStages = stages2.NewSequencerZkStages(
 				backend.sentryCtx,
 				backend.chainDB,
@@ -1207,6 +1219,8 @@ func New(ctx context.Context, stack *node.Node, config *ethconfig.Config, logger
 				backend.txPool2DB,
 				verifier,
 				l1InfoTreeUpdater,
+				hook,
+				backend.blockCreationCh,
 			)
 
 			backend.syncUnwindOrder = zkStages.ZkSequencerUnwindOrder
@@ -1972,6 +1986,9 @@ func (s *Ethereum) Start() error {
 	// 	}
 	// }
 
+	if s.sbbClient != nil {
+		s.sbbClient.Start()
+	}
 	return nil
 }
 
@@ -2073,6 +2090,10 @@ func (s *Ethereum) ExecutionModule() *eth1.EthereumExecutionModule {
 	return s.eth1ExecutionServer
 }
 
+func (s *Ethereum) Config() *ethconfig.Config {
+	return s.config
+}
+
 // RemoveContents is like os.RemoveAll, but preserve dir itself
 func RemoveContents(dirname string) error {
 	d, err := os.Open(dirname)
@@ -2131,6 +2152,50 @@ func (s *Ethereum) Sentinel() rpcsentinel.SentinelClient {
 
 func (s *Ethereum) DataDir() string {
 	return s.config.Dirs.DataDir
+}
+
+func (s *Ethereum) GetBlockNumber() (*uint64, error) {
+
+	var latestBlock *uint64
+	err := s.chainDB.View(context.Background(), func(tx kv.Tx) error {
+		ss, err := s.stagedSync.StageState(stages.Execution, tx, s.chainDB)
+		num, err := ss.ExecutionAt(tx)
+		if err != nil {
+			return err
+		}
+		latestBlock = &num
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return latestBlock, nil
+
+	//var latestBlock *uint64
+	//err := s.chainDB.View(context.Background(), func(tx kv.Tx) error {
+	//	latestBlock = rawdb.ReadCurrentBlockNumber(tx)
+	//	return nil
+	//})
+	//if err != nil {
+	//	log.Error("Failed to read latest block", "error", err)
+	//	return nil, err
+	//}
+	//return latestBlock, nil
+}
+
+func (s *Ethereum) BlockCreationCh() chan struct{} {
+	return s.blockCreationCh
+}
+
+func (s *Ethereum) SubmitRawTransactions(ctx context.Context, encodedTxs [][]byte) error {
+	txPoolClient := direct.NewTxPoolClient(s.txPool2GrpcServer)
+	for _, encodedTx := range encodedTxs {
+		_, err := txPoolClient.Add(ctx, &txpoolproto.AddRequest{RlpTxs: [][]byte{encodedTx}})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // setBorDefaultMinerGasPrice enforces Miner.GasPrice to be equal to BorDefaultMinerGasPrice (30gwei by default)

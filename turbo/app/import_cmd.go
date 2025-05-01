@@ -22,6 +22,7 @@ import (
 	"github.com/ledgerwatch/erigon/consensus/merge"
 	"github.com/ledgerwatch/erigon/turbo/execution/eth1/eth1_chain_reader.go"
 	"github.com/ledgerwatch/erigon/turbo/services"
+	"github.com/ledgerwatch/erigon/turbo/stages"
 
 	"github.com/ledgerwatch/erigon/cmd/utils"
 	"github.com/ledgerwatch/erigon/core"
@@ -31,7 +32,6 @@ import (
 	"github.com/ledgerwatch/erigon/rlp"
 	"github.com/ledgerwatch/erigon/turbo/debug"
 	turboNode "github.com/ledgerwatch/erigon/turbo/node"
-	"github.com/ledgerwatch/erigon/turbo/stages"
 )
 
 const (

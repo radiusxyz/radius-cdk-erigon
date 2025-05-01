@@ -105,6 +105,8 @@ type GrpcServer struct {
 	NewSlotsStreams *NewSlotsStreams
 
 	chainID uint256.Int
+
+	useTxOrderer bool
 }
 
 func NewGrpcServer(ctx context.Context, txPool txPool, db kv.RoDB, chainID uint256.Int) *GrpcServer {
@@ -232,12 +234,29 @@ func (s *GrpcServer) Add(ctx context.Context, in *txpool_proto.AddRequest) (*txp
 	}
 
 	j = 0
+	//count := math.Min(float64(len(discardReasons)), float64(len(reply.Imported)))
+	//for i := 0; i < int(count); i++ {
+
+	//for i := range reply.Imported {
+	//	if reply.Imported[i] != txpool_proto.ImportResult_SUCCESS {
+	//		//j++ // 이게 삭제돼야되고
+	//		fmt.Println("stompesi - case 1")
+	//		continue
+	//	} else {
+	//		fmt.Println("stompesi - case 2 reply.Imported[i]: ", reply.Imported[i].String())
+	//	}
+	//
+	//	reply.Imported[i] = mapDiscardReasonToProto(discardReasons[j])
+	//	reply.Errors[i] = discardReasons[j].String()
+	//	j++
+	//}
+
+	j = 0
 	for i := range reply.Imported {
 		if reply.Imported[i] != txpool_proto.ImportResult_SUCCESS {
 			j++
 			continue
 		}
-
 		reply.Imported[i] = mapDiscardReasonToProto(discardReasons[j])
 		reply.Errors[i] = discardReasons[j].String()
 		j++
