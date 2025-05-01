@@ -46,9 +46,17 @@ type FinalizeBlockParams struct {
 	Signature string                     `json:"signature"`
 }
 
+type LeaderChangeMessage struct {
+	RollupId                      string `json:"rollup_id"`
+	ExecutorAddress               string `json:"executor_address"`
+	CurrentLeaderTxOrdererAddress string `json:"current_leader_tx_orderer_address"`
+	NextLeaderTxOrdererAddress    string `json:"next_leader_tx_orderer_address"`
+	PlatformBlockHeight           uint64 `json:"platform_block_height"`
+}
+
 type GetRawTransactionsParams struct {
-	RollupId          string `json:"rollup_id"`
-	RollupBlockHeight uint64 `json:"rollup_block_height"`
+	LeaderChangeMessage LeaderChangeMessage `json:"leader_change_message"`
+	RollupSignature     string              `json:"rollup_signature"`
 }
 
 type GetRawTransactionsResponse struct {
