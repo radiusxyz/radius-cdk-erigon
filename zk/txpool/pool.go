@@ -240,6 +240,7 @@ type metaTx struct {
 }
 
 func newMetaTx(seq *int, slot *types.TxSlot, isLocal bool, timestmap uint64) *metaTx {
+	*seq = 0
 	mt := &metaTx{seq: seq, Tx: slot, worstIndex: -1, bestIndex: -1, timestamp: timestmap, created: uint64(time.Now().Unix())}
 	if isLocal {
 		mt.subPool = IsLocal
