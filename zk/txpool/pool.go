@@ -240,7 +240,6 @@ type metaTx struct {
 }
 
 func newMetaTx(seq *int, slot *types.TxSlot, isLocal bool, timestmap uint64) *metaTx {
-	*seq = 0
 	mt := &metaTx{seq: seq, Tx: slot, worstIndex: -1, bestIndex: -1, timestamp: timestmap, created: uint64(time.Now().Unix())}
 	if isLocal {
 		mt.subPool = IsLocal
@@ -2482,121 +2481,121 @@ type BestQueue struct {
 
 func (mt *metaTx) better(than *metaTx, pendingBaseFee uint256.Int) bool {
 	// useTxOrderer
-	if mt.seq != nil {
-		if mt.created != than.created {
-			return mt.created < than.created
-		}
-		if *mt.seq != *than.seq {
-			return *mt.seq < *than.seq
-		}
-		return mt.nonceDistance < than.nonceDistance
-	} else {
-		subPool := mt.subPool
-		thanSubPool := than.subPool
+	//if mt.seq != nil {
+	//	if mt.created != than.created {
+	//		return mt.created < than.created
+	//	}
+	//	if *mt.seq != *than.seq {
+	//		return *mt.seq < *than.seq
+	//	}
+	//	return mt.nonceDistance < than.nonceDistance
+	//} else {
+	subPool := mt.subPool
+	thanSubPool := than.subPool
+	if mt.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
+		subPool |= EnoughFeeCapBlock
+	}
+	if than.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
+		thanSubPool |= EnoughFeeCapBlock
+	}
+	if subPool != thanSubPool {
+		return subPool > thanSubPool
+	}
+
+	switch mt.currentSubPool {
+	case PendingSubPool:
+		var effectiveTip, thanEffectiveTip uint256.Int
 		if mt.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
-			subPool |= EnoughFeeCapBlock
+			difference := uint256.NewInt(0)
+			difference.Sub(&mt.minFeeCap, &pendingBaseFee)
+			if difference.Cmp(uint256.NewInt(mt.minTip)) <= 0 {
+				effectiveTip = *difference
+			} else {
+				effectiveTip = *uint256.NewInt(mt.minTip)
+			}
 		}
 		if than.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
-			thanSubPool |= EnoughFeeCapBlock
-		}
-		if subPool != thanSubPool {
-			return subPool > thanSubPool
-		}
-
-		switch mt.currentSubPool {
-		case PendingSubPool:
-			var effectiveTip, thanEffectiveTip uint256.Int
-			if mt.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
-				difference := uint256.NewInt(0)
-				difference.Sub(&mt.minFeeCap, &pendingBaseFee)
-				if difference.Cmp(uint256.NewInt(mt.minTip)) <= 0 {
-					effectiveTip = *difference
-				} else {
-					effectiveTip = *uint256.NewInt(mt.minTip)
-				}
-			}
-			if than.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
-				difference := uint256.NewInt(0)
-				difference.Sub(&than.minFeeCap, &pendingBaseFee)
-				if difference.Cmp(uint256.NewInt(than.minTip)) <= 0 {
-					thanEffectiveTip = *difference
-				} else {
-					thanEffectiveTip = *uint256.NewInt(than.minTip)
-				}
-			}
-			if effectiveTip.Cmp(&thanEffectiveTip) != 0 {
-				return effectiveTip.Cmp(&thanEffectiveTip) > 0
-			}
-			// Compare nonce and cumulative balance. Just as a side note, it doesn't
-			// matter if they're from same sender or not because we're comparing
-			// nonce distance of the sender from state's nonce and not the actual
-			// value of nonce.
-			if mt.nonceDistance != than.nonceDistance {
-				return mt.nonceDistance < than.nonceDistance
-			}
-			if mt.cumulativeBalanceDistance != than.cumulativeBalanceDistance {
-				return mt.cumulativeBalanceDistance < than.cumulativeBalanceDistance
-			}
-		case BaseFeeSubPool:
-			if mt.minFeeCap.Cmp(&than.minFeeCap) != 0 {
-				return mt.minFeeCap.Cmp(&than.minFeeCap) > 0
-			}
-		case QueuedSubPool:
-			if mt.nonceDistance != than.nonceDistance {
-				return mt.nonceDistance < than.nonceDistance
-			}
-			if mt.cumulativeBalanceDistance != than.cumulativeBalanceDistance {
-				return mt.cumulativeBalanceDistance < than.cumulativeBalanceDistance
+			difference := uint256.NewInt(0)
+			difference.Sub(&than.minFeeCap, &pendingBaseFee)
+			if difference.Cmp(uint256.NewInt(than.minTip)) <= 0 {
+				thanEffectiveTip = *difference
+			} else {
+				thanEffectiveTip = *uint256.NewInt(than.minTip)
 			}
 		}
-		return mt.timestamp < than.timestamp
+		if effectiveTip.Cmp(&thanEffectiveTip) != 0 {
+			return effectiveTip.Cmp(&thanEffectiveTip) > 0
+		}
+		// Compare nonce and cumulative balance. Just as a side note, it doesn't
+		// matter if they're from same sender or not because we're comparing
+		// nonce distance of the sender from state's nonce and not the actual
+		// value of nonce.
+		if mt.nonceDistance != than.nonceDistance {
+			return mt.nonceDistance < than.nonceDistance
+		}
+		if mt.cumulativeBalanceDistance != than.cumulativeBalanceDistance {
+			return mt.cumulativeBalanceDistance < than.cumulativeBalanceDistance
+		}
+	case BaseFeeSubPool:
+		if mt.minFeeCap.Cmp(&than.minFeeCap) != 0 {
+			return mt.minFeeCap.Cmp(&than.minFeeCap) > 0
+		}
+	case QueuedSubPool:
+		if mt.nonceDistance != than.nonceDistance {
+			return mt.nonceDistance < than.nonceDistance
+		}
+		if mt.cumulativeBalanceDistance != than.cumulativeBalanceDistance {
+			return mt.cumulativeBalanceDistance < than.cumulativeBalanceDistance
+		}
 	}
+	return mt.timestamp < than.timestamp
+	//}
 }
 
 func (mt *metaTx) worse(than *metaTx, pendingBaseFee uint256.Int) bool {
 	// useTxOrderer
-	if mt.seq != nil {
-		if mt.created != than.created {
-			return mt.created > than.created
-		}
-		if *mt.seq != *than.seq {
-			return *mt.seq > *than.seq
-		}
-		return mt.nonceDistance > than.nonceDistance
-	} else {
-		subPool := mt.subPool
-		thanSubPool := than.subPool
-		if mt.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
-			subPool |= EnoughFeeCapBlock
-		}
-		if than.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
-			thanSubPool |= EnoughFeeCapBlock
-		}
-		if subPool != thanSubPool {
-			return subPool < thanSubPool
-		}
-
-		switch mt.currentSubPool {
-		case PendingSubPool:
-			if mt.minFeeCap != than.minFeeCap {
-				return mt.minFeeCap.Cmp(&than.minFeeCap) < 0
-			}
-			if mt.nonceDistance != than.nonceDistance {
-				return mt.nonceDistance > than.nonceDistance
-			}
-			if mt.cumulativeBalanceDistance != than.cumulativeBalanceDistance {
-				return mt.cumulativeBalanceDistance > than.cumulativeBalanceDistance
-			}
-		case BaseFeeSubPool, QueuedSubPool:
-			if mt.nonceDistance != than.nonceDistance {
-				return mt.nonceDistance > than.nonceDistance
-			}
-			if mt.cumulativeBalanceDistance != than.cumulativeBalanceDistance {
-				return mt.cumulativeBalanceDistance > than.cumulativeBalanceDistance
-			}
-		}
-		return mt.timestamp > than.timestamp
+	//if mt.seq != nil {
+	//	if mt.created != than.created {
+	//		return mt.created > than.created
+	//	}
+	//	if *mt.seq != *than.seq {
+	//		return *mt.seq > *than.seq
+	//	}
+	//	return mt.nonceDistance > than.nonceDistance
+	//} else {
+	subPool := mt.subPool
+	thanSubPool := than.subPool
+	if mt.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
+		subPool |= EnoughFeeCapBlock
 	}
+	if than.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
+		thanSubPool |= EnoughFeeCapBlock
+	}
+	if subPool != thanSubPool {
+		return subPool < thanSubPool
+	}
+
+	switch mt.currentSubPool {
+	case PendingSubPool:
+		if mt.minFeeCap != than.minFeeCap {
+			return mt.minFeeCap.Cmp(&than.minFeeCap) < 0
+		}
+		if mt.nonceDistance != than.nonceDistance {
+			return mt.nonceDistance > than.nonceDistance
+		}
+		if mt.cumulativeBalanceDistance != than.cumulativeBalanceDistance {
+			return mt.cumulativeBalanceDistance > than.cumulativeBalanceDistance
+		}
+	case BaseFeeSubPool, QueuedSubPool:
+		if mt.nonceDistance != than.nonceDistance {
+			return mt.nonceDistance > than.nonceDistance
+		}
+		if mt.cumulativeBalanceDistance != than.cumulativeBalanceDistance {
+			return mt.cumulativeBalanceDistance > than.cumulativeBalanceDistance
+		}
+	}
+	return mt.timestamp > than.timestamp
+	//}
 }
 
 func (p BestQueue) Len() int { return len(p.ms) }
