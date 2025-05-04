@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/ledgerwatch/erigon/eth/lighthouseservice"
+	"github.com/ledgerwatch/erigon/httpclient"
 	"github.com/ledgerwatch/erigon/logger"
 	"strconv"
 	"time"
@@ -22,7 +23,6 @@ type SlotTransactions struct {
 }
 
 type SbbService struct {
-	*config.SbbConfig
 	mode                     string
 	LighthouseService        *lighthouseservice.LighthouseService
 	blockchain               *blockchain.Blockchain
@@ -34,13 +34,12 @@ type SbbService struct {
 	sbbUrl                   string
 }
 
-func NewSbbService(conf *config.SbbConfig, LighthouseService *lighthouseservice.LighthouseService, mode string, rollupId string, sbbUrl string, dataDir string) (*SbbService, error) {
+func NewSbbService(LighthouseService *lighthouseservice.LighthouseService, mode string, rollupId string, sbbUrl string) (*SbbService, error) {
 	httpClient := httpclient.New()
 
 	bc := blockchain.NewBlockchain(dataDir)
 
 	return &SbbService{
-		SbbConfig:                conf,
 		mode:                     mode,
 		LighthouseService:        LighthouseService,
 		blockchain:               bc,
