@@ -18,8 +18,7 @@ const (
 )
 
 type SlotTransactions struct {
-	slotNumber   int64
-	transactions []string
+	transactions [][]byte
 }
 
 type SbbService struct {
