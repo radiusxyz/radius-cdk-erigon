@@ -3,6 +3,7 @@ package sbbservice
 import (
 	"context"
 	"fmt"
+	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/eth/lighthouseservice"
 	"github.com/ledgerwatch/erigon/httpclient"
 	"github.com/ledgerwatch/erigon/logger"
@@ -21,38 +22,45 @@ type SlotTransactions struct {
 	transactions [][]byte
 }
 
+type BlockchainService interface {
+	SubmitRawTransactions(ctx context.Context, encodedTx [][]byte) error
+	GetBlockNumber() (*uint64, error)
+	BlockCreationCh() chan struct{}
+	Config() *ethconfig.Config
+}
+
 type SbbService struct {
 	mode                     string
 	LighthouseService        *lighthouseservice.LighthouseService
-	blockchain               *blockchain.Blockchain
+	blockchain               BlockchainService
 	httpClient               *httpclient.HttpClient
 	rollupId                 string
 	auctionCreatedSlotNumber int64
 	fetchedTxsSlotNumber     int64
 	slotTransactionsCh       chan *SlotTransactions
+	slotTime                 int
 	sbbUrl                   string
 }
 
-func NewSbbService(LighthouseService *lighthouseservice.LighthouseService, mode string, rollupId string, sbbUrl string) (*SbbService, error) {
+func NewSbbService(blockchainService BlockchainService, LighthouseService *lighthouseservice.LighthouseService, mode string, rollupId string, slotTime int, maxSbbFinalizationCapacity int, sbbUrl string) (*SbbService, error) {
 	httpClient := httpclient.New()
-
-	bc := blockchain.NewBlockchain(dataDir)
 
 	return &SbbService{
 		mode:                     mode,
 		LighthouseService:        LighthouseService,
-		blockchain:               bc,
+		blockchain:               blockchainService,
 		httpClient:               httpClient,
 		rollupId:                 rollupId,
 		auctionCreatedSlotNumber: -1,
 		fetchedTxsSlotNumber:     -1,
-		slotTransactionsCh:       make(chan *SlotTransactions, conf.MaxSbbFinalizationCapacity),
+		slotTransactionsCh:       make(chan *SlotTransactions, maxSbbFinalizationCapacity),
+		slotTime:                 slotTime,
 		sbbUrl:                   sbbUrl,
 	}, nil
 }
 
 func (s *SbbService) Start(ctx context.Context) {
-	log.Info("Starting sbb service...")
+	logger.Println("Starting sbb service...")
 	go s.requestToSbb(ctx)
 	go s.insertTransactions(ctx)
 }
@@ -61,7 +69,7 @@ func (s *SbbService) insertTransactions(ctx context.Context) {
 	for {
 		select {
 		case slotTransactions := <-s.slotTransactionsCh:
-			if err := s.blockchain.SubmitRawTransactions(slotTransactions.slotNumber, slotTransactions.transactions); err != nil {
+			if err := s.blockchain.SubmitRawTransactions(ctx, slotTransactions.transactions); err != nil {
 				panic("youngmin - SubmitRawTransactions" + err.Error())
 			}
 		case <-ctx.Done():
@@ -71,7 +79,7 @@ func (s *SbbService) insertTransactions(ctx context.Context) {
 }
 
 func (s *SbbService) requestToSbb(ctx context.Context) {
-	loopTime := int64(s.SlotTime)
+	loopTime := int64(s.slotTime)
 	timer := time.NewTimer(time.Duration(loopTime) * time.Millisecond)
 
 	for {
@@ -81,7 +89,7 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 
 			if s.LighthouseService != nil && s.auctionCreatedSlotNumber <= s.fetchedTxsSlotNumber+1 {
 				creatingAuctionSlotNumber := s.fetchedTxsSlotNumber + 2
-				if err := s.LighthouseService.CreateAuction(creatingAuctionSlotNumber, s.SlotTime); err != nil {
+				if err := s.LighthouseService.CreateAuction(creatingAuctionSlotNumber, s.slotTime); err != nil {
 					fmt.Println("failed to create auction, error: ", err.Error())
 				} else {
 					s.auctionCreatedSlotNumber = creatingAuctionSlotNumber
@@ -94,7 +102,7 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 					fmt.Println("failed to get raw transactions, error: ", err.Error())
 					return err
 				}
-				s.slotTransactionsCh <- &SlotTransactions{slotNumber: s.fetchedTxsSlotNumber, transactions: transactions}
+				s.slotTransactionsCh <- &SlotTransactions{transactions: transactions}
 				return nil
 			}, 100*time.Millisecond); err != nil {
 				fmt.Printf("getRawTransactions error: %v", err)

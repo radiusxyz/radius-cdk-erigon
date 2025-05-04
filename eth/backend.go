@@ -21,6 +21,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ledgerwatch/erigon/eth/lighthouseservice"
+	"github.com/ledgerwatch/erigon/eth/sbbservice"
 	"io/fs"
 	"math/big"
 	"net"
@@ -239,6 +241,9 @@ type Ethereum struct {
 	polygonSyncService polygonsync.Service
 	stopNode           func() error
 	gasTracker         *jsonrpc.RecurringL1GasPriceTracker
+
+	sbbService        *sbbservice.SbbService
+	lighthouseService *lighthouseservice.LighthouseService
 }
 
 func splitAddrIntoHostAndPort(addr string) (host string, port int, err error) {
@@ -1182,6 +1187,23 @@ func New(ctx context.Context, stack *node.Node, config *ethconfig.Config, logger
 				cfg.L1HighestBlockType,
 			)
 
+			if config.Mode == "lighthouse" {
+				backend.lighthouseService, err = lighthouseservice.NewLighthouseService(config.LighthouseUrl, config.RollupId, config.SequencerPrivateKey, config.SbbUrl)
+				if err != nil {
+					return nil, err
+				}
+
+				backend.sbbService, err = sbbservice.NewSbbService(ctx, backend)
+				if err != nil {
+					return nil, err
+				}
+			} else if config.Mode == "sbb" {
+				backend.sbbService, err = sbbservice.NewSbbService(ctx, backend)
+				if err != nil {
+					return nil, err
+				}
+			}
+
 			backend.syncStages = stages2.NewSequencerZkStages(
 				backend.sentryCtx,
 				backend.chainDB,
@@ -2111,6 +2133,39 @@ func (s *Ethereum) Sentinel() rpcsentinel.SentinelClient {
 
 func (s *Ethereum) DataDir() string {
 	return s.config.Dirs.DataDir
+}
+
+func (s *Ethereum) GetBlockNumber() (*uint64, error) {
+
+	var latestBlock *uint64
+	err := s.chainDB.View(context.Background(), func(tx kv.Tx) error {
+		ss, err := s.stagedSync.StageState(stages.Execution, tx, s.chainDB)
+		num, err := ss.ExecutionAt(tx)
+		if err != nil {
+			return err
+		}
+		latestBlock = &num
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return latestBlock, nil
+}
+
+func (s *Ethereum) SubmitRawTransactions(ctx context.Context, encodedTxs [][]byte) error {
+	txPoolClient := direct.NewTxPoolClient(s.txPool2GrpcServer)
+	for _, encodedTx := range encodedTxs {
+		_, err := txPoolClient.Add(ctx, &txpoolproto.AddRequest{RlpTxs: [][]byte{encodedTx}})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Ethereum) Config() *ethconfig.Config {
+	return s.config
 }
 
 // setBorDefaultMinerGasPrice enforces Miner.GasPrice to be equal to BorDefaultMinerGasPrice (30gwei by default)

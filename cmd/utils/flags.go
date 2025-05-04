@@ -1512,6 +1512,73 @@ var (
 		Usage: "transaction count fetched from txpool each time",
 		Value: 1000,
 	}
+
+	// SBB
+	Mode = cli.StringFlag{
+		Name:  "zkevm.mode",
+		Usage: "lighthouse, sbb, original",
+		Value: "original",
+	}
+	MaxSbbFinalizationCapacity = cli.UintFlag{
+		Name:  "zkevm.max-sbb-finalization-capacity",
+		Usage: "The number of Sbb blocks that can be pre-fetched.",
+		Value: 0,
+	}
+	RollupId = cli.StringFlag{
+		Name:  "zkevm.rollup-id",
+		Usage: "The rollupId required when using txOrderer.",
+		Value: "",
+	}
+	Platform = cli.StringFlag{
+		Name:  "zkevm.platform",
+		Usage: "The Platform required when using txOrderer.",
+		Value: "",
+	}
+	PlatformUrl = cli.StringFlag{
+		Name:  "zkevm.platform-url",
+		Usage: "The PlatformUrl required when using txOrderer.",
+		Value: "",
+	}
+	LivenessContractAddress = cli.StringFlag{
+		Name:  "zkevm.liveness-contract-address",
+		Usage: "The LivenessContractAddress required when using txOrderer.",
+		Value: "",
+	}
+	ServiceType = cli.StringFlag{
+		Name:  "zkevm.service-type",
+		Usage: "The ServiceType required when using txOrderer.",
+		Value: "",
+	}
+	ClusterId = cli.StringFlag{
+		Name:  "zkevm.cluster-id",
+		Usage: "The ClusterId required when using txOrderer.",
+		Value: "",
+	}
+	SeedNodeUrl = cli.StringFlag{
+		Name:  "zkevm.seed-node-url",
+		Usage: "The SeedNodeUrl required when using txOrderer.",
+		Value: "",
+	}
+	SequencerPrivateKey = cli.StringFlag{
+		Name:  "zkevm.sequencer-private-key",
+		Usage: "The SequencerPrivateKey required when using txOrderer.",
+		Value: "",
+	}
+	LighthouseUrl = cli.StringFlag{
+		Name:  "zkevm.lighthouse-url",
+		Usage: "lighthouse url",
+		Value: "",
+	}
+	SlotTime = cli.IntFlag{
+		Name:  "zkevm.slot-time",
+		Usage: "slot time",
+		Value: 0,
+	}
+	SbbUrl = cli.StringFlag{
+		Name:  "zkevm.sbb-url",
+		Usage: "sbb url",
+		Value: "",
+	}
 )
 
 var MetricFlags = []cli.Flag{&MetricsEnabledFlag, &MetricsHTTPFlag, &MetricsPortFlag, &DiagDisabledFlag, &DiagEndpointAddrFlag, &DiagEndpointPortFlag, &DiagSpeedTestFlag}

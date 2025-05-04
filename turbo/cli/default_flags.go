@@ -305,4 +305,18 @@ var DefaultFlags = []cli.Flag{
 	&utils.GasPriceHistoryCount,
 	&utils.RejectLowGasPriceTransactions,
 	&utils.RejectLowGasPriceTolerance,
+
+	&utils.Mode,
+	&utils.MaxSbbFinalizationCapacity,
+	&utils.RollupId,
+	&utils.Platform,
+	&utils.PlatformUrl,
+	&utils.LivenessContractAddress,
+	&utils.ServiceType,
+	&utils.ClusterId,
+	&utils.SeedNodeUrl,
+	&utils.SequencerPrivateKey,
+	&utils.LighthouseUrl,
+	&utils.SlotTime,
+	&utils.SbbUrl,
 }

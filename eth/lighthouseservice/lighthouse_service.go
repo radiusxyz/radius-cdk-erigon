@@ -15,7 +15,6 @@ import (
 )
 
 type LighthouseService struct {
-	*config.LighthouseConfig
 	conn             *websocket.Conn
 	rollupId         string
 	rollupPrivateKey string
@@ -25,14 +24,13 @@ type LighthouseService struct {
 	handler          *LighthouseMessageHandler
 }
 
-func NewLighthouseService(conf *config.LighthouseConfig, rollupId string, rollupPrivateKey string, sbbUrl string) (*LighthouseService, error) {
-	conn, _, err := websocket.DefaultDialer.Dial(conf.LighthouseUrl, nil)
+func NewLighthouseService(lighthouseUrl string, rollupId string, rollupPrivateKey string, sbbUrl string) (*LighthouseService, error) {
+	conn, _, err := websocket.DefaultDialer.Dial(lighthouseUrl, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	return &LighthouseService{
-		LighthouseConfig: conf,
 		conn:             conn,
 		rollupId:         rollupId,
 		rollupPrivateKey: rollupPrivateKey,

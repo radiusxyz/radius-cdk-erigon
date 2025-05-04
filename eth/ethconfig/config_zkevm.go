@@ -107,6 +107,21 @@ type Zk struct {
 	BadTxAllowance                 uint64
 	RejectLowGasPriceTransactions  bool
 	RejectLowGasPriceTolerance     float64
+
+	// SBB
+	Mode                       string
+	MaxSbbFinalizationCapacity int
+	RollupId                   string
+	Platform                   string
+	PlatformUrl                string
+	LivenessContractAddress    string
+	ServiceType                string
+	ClusterId                  string
+	SeedNodeUrl                string
+	SequencerPrivateKey        string
+	LighthouseUrl              string
+	SlotTime                   int
+	SbbUrl                     string
 }
 
 var DefaultZkConfig = &Zk{}
