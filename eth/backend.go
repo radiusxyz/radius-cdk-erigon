@@ -1188,17 +1188,17 @@ func New(ctx context.Context, stack *node.Node, config *ethconfig.Config, logger
 			)
 
 			if config.Mode == "lighthouse" {
-				backend.lighthouseService, err = lighthouseservice.NewLighthouseService(config.LighthouseUrl, config.RollupId, config.SequencerPrivateKey, config.SbbUrl)
+				backend.lighthouseService, err = lighthouseservice.NewLighthouseService(config)
 				if err != nil {
 					return nil, err
 				}
 
-				backend.sbbService, err = sbbservice.NewSbbService(ctx, backend)
+				backend.sbbService, err = sbbservice.NewSbbService(config, backend, backend.lighthouseService)
 				if err != nil {
 					return nil, err
 				}
 			} else if config.Mode == "sbb" {
-				backend.sbbService, err = sbbservice.NewSbbService(ctx, backend)
+				backend.sbbService, err = sbbservice.NewSbbService(config, backend, backend.lighthouseService)
 				if err != nil {
 					return nil, err
 				}

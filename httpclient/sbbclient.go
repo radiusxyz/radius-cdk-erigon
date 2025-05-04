@@ -34,9 +34,8 @@ func makeRequest(ctx context.Context, url string, body interface{}) (*http.Reque
 		return nil, err
 	}
 
-	// 헤더 설정 (Cache-Control: no-cache 추가)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Cache-Control", "no-cache") // 캐시 방지
+	req.Header.Set("Cache-Control", "no-cache")
 	return req, nil
 }
 

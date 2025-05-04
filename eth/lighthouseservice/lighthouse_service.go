@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/ledgerwatch/erigon/crypto"
+	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/eth/lighthouseservice/requests"
 	"github.com/ledgerwatch/erigon/logger"
 	"io"
@@ -15,29 +16,25 @@ import (
 )
 
 type LighthouseService struct {
-	conn             *websocket.Conn
-	rollupId         string
-	rollupPrivateKey string
-	sbbUrl           string
-	leaveCh          chan struct{}
-	envelopeCh       chan []byte
-	handler          *LighthouseMessageHandler
+	*ethconfig.Config
+	conn       *websocket.Conn
+	leaveCh    chan struct{}
+	envelopeCh chan []byte
+	handler    *LighthouseMessageHandler
 }
 
-func NewLighthouseService(lighthouseUrl string, rollupId string, rollupPrivateKey string, sbbUrl string) (*LighthouseService, error) {
-	conn, _, err := websocket.DefaultDialer.Dial(lighthouseUrl, nil)
+func NewLighthouseService(config *ethconfig.Config) (*LighthouseService, error) {
+	conn, _, err := websocket.DefaultDialer.Dial(config.LighthouseUrl, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	return &LighthouseService{
-		conn:             conn,
-		rollupId:         rollupId,
-		rollupPrivateKey: rollupPrivateKey,
-		sbbUrl:           sbbUrl,
-		leaveCh:          make(chan struct{}),
-		envelopeCh:       make(chan []byte),
-		handler:          NewLighthouseMessageHandler(conn),
+		Config:     config,
+		conn:       conn,
+		leaveCh:    make(chan struct{}),
+		envelopeCh: make(chan []byte),
+		handler:    NewLighthouseMessageHandler(conn),
 	}, nil
 }
 
@@ -48,13 +45,13 @@ func (l *LighthouseService) Start(ctx context.Context) {
 
 	go l.ReadMessage()
 
-	signature, err := GetSignature(l.rollupId, l.rollupPrivateKey)
+	signature, err := GetSignature(l.RollupId, l.SequencerPrivateKey)
 	if err != nil {
 		panic(err)
 	}
 
 	verifyRollupRequest := &requests.VerifyRollupRequest{
-		RollupId:  l.rollupId,
+		RollupId:  l.RollupId,
 		Signature: signature,
 	}
 
@@ -62,15 +59,15 @@ func (l *LighthouseService) Start(ctx context.Context) {
 		logger.Println("Write error:", err)
 	}
 
-	logger.Printf("rollup(%s) verification message sent", l.rollupId)
+	logger.Printf("rollup(%s) verification message sent", l.RollupId)
 }
 
 func (l *LighthouseService) CreateAuction(slotNumber int64, slotTime int) error {
 	createAuctionRequest := &requests.CreateAuctionRequest{
-		RollupId:           l.rollupId,
+		RollupId:           l.RollupId,
 		SlotNumber:         slotNumber,
 		SlotTime:           slotTime,
-		LeaderTxOrdererUrl: l.sbbUrl,
+		LeaderTxOrdererUrl: l.SbbUrl,
 	}
 	requestType := requests.CreateAuction
 	if err := l.handler.SendMessage(requestType, createAuctionRequest); err != nil {

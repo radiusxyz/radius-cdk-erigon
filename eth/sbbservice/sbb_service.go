@@ -2,12 +2,14 @@ package sbbservice
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/eth/lighthouseservice"
 	"github.com/ledgerwatch/erigon/httpclient"
 	"github.com/ledgerwatch/erigon/logger"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -25,37 +27,30 @@ type SlotTransactions struct {
 type BlockchainService interface {
 	SubmitRawTransactions(ctx context.Context, encodedTx [][]byte) error
 	GetBlockNumber() (*uint64, error)
-	BlockCreationCh() chan struct{}
 	Config() *ethconfig.Config
 }
 
 type SbbService struct {
-	mode                     string
+	*ethconfig.Config
 	LighthouseService        *lighthouseservice.LighthouseService
 	blockchain               BlockchainService
 	httpClient               *httpclient.HttpClient
-	rollupId                 string
 	auctionCreatedSlotNumber int64
 	fetchedTxsSlotNumber     int64
 	slotTransactionsCh       chan *SlotTransactions
-	slotTime                 int
-	sbbUrl                   string
 }
 
-func NewSbbService(blockchainService BlockchainService, LighthouseService *lighthouseservice.LighthouseService, mode string, rollupId string, slotTime int, maxSbbFinalizationCapacity int, sbbUrl string) (*SbbService, error) {
+func NewSbbService(config *ethconfig.Config, blockchainService BlockchainService, lighthouseService *lighthouseservice.LighthouseService) (*SbbService, error) {
 	httpClient := httpclient.New()
 
 	return &SbbService{
-		mode:                     mode,
-		LighthouseService:        LighthouseService,
+		Config:                   config,
+		LighthouseService:        lighthouseService,
 		blockchain:               blockchainService,
 		httpClient:               httpClient,
-		rollupId:                 rollupId,
 		auctionCreatedSlotNumber: -1,
 		fetchedTxsSlotNumber:     -1,
-		slotTransactionsCh:       make(chan *SlotTransactions, maxSbbFinalizationCapacity),
-		slotTime:                 slotTime,
-		sbbUrl:                   sbbUrl,
+		slotTransactionsCh:       make(chan *SlotTransactions, config.MaxSbbFinalizationCapacity),
 	}, nil
 }
 
@@ -79,7 +74,7 @@ func (s *SbbService) insertTransactions(ctx context.Context) {
 }
 
 func (s *SbbService) requestToSbb(ctx context.Context) {
-	loopTime := int64(s.slotTime)
+	loopTime := int64(s.SlotTime)
 	timer := time.NewTimer(time.Duration(loopTime) * time.Millisecond)
 
 	for {
@@ -89,7 +84,7 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 
 			if s.LighthouseService != nil && s.auctionCreatedSlotNumber <= s.fetchedTxsSlotNumber+1 {
 				creatingAuctionSlotNumber := s.fetchedTxsSlotNumber + 2
-				if err := s.LighthouseService.CreateAuction(creatingAuctionSlotNumber, s.slotTime); err != nil {
+				if err := s.LighthouseService.CreateAuction(creatingAuctionSlotNumber, s.SlotTime); err != nil {
 					fmt.Println("failed to create auction, error: ", err.Error())
 				} else {
 					s.auctionCreatedSlotNumber = creatingAuctionSlotNumber
@@ -123,15 +118,15 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 	}
 }
 
-func (s *SbbService) getRawTransactions(ctx context.Context) ([]string, error) {
+func (s *SbbService) getRawTransactions(ctx context.Context) ([][]byte, error) {
 	reqCtx, reqCancel := context.WithTimeout(ctx, 2*time.Second)
 	defer reqCancel()
 
 	fetchingTxsSlotNumber := s.fetchedTxsSlotNumber + 1
 
 	params := GetRawTransactionsParams{
-		RollupId:               s.rollupId,
-		Mode:                   s.mode,
+		RollupId:               s.RollupId,
+		Mode:                   s.Mode,
 		SlotNumber:             fetchingTxsSlotNumber,
 		NextSlotAuctionCreated: s.auctionCreatedSlotNumber == fetchingTxsSlotNumber+1,
 	}
@@ -139,15 +134,26 @@ func (s *SbbService) getRawTransactions(ctx context.Context) ([]string, error) {
 	body := newJsonRpcRequest(GetRawTransactionList, params)
 
 	res := &GetRawTransactionsResponse{}
-	if err := s.httpClient.Send(reqCtx, s.sbbUrl, body, res); err != nil {
+	if err := s.httpClient.Send(reqCtx, s.SbbUrl, body, res); err != nil {
 		return nil, err
+	}
+
+	var encodedTxs [][]byte
+
+	for _, hexStr := range res.RawTransactions {
+		hexStr = strings.TrimPrefix(hexStr, "0x")
+		binary, err := hex.DecodeString(hexStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode transaction: %w", err)
+		}
+		encodedTxs = append(encodedTxs, binary)
 	}
 
 	s.fetchedTxsSlotNumber = fetchingTxsSlotNumber
 
 	logger.ColorPrintln(logger.Green, "Transaction processing succeeded. tx count: "+strconv.Itoa(len(res.RawTransactions))+" slot number: "+strconv.FormatInt(s.fetchedTxsSlotNumber, 10))
 
-	return res.RawTransactions, nil
+	return encodedTxs, nil
 }
 
 func Retry(ctx context.Context, fn func() error, retryInterval time.Duration) error {
