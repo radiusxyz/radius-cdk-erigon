@@ -237,6 +237,21 @@ func ApplyFlagsForZkConfig(ctx *cli.Context, cfg *ethconfig.Config) {
 		GasPriceHistoryCount:                   ctx.Uint64(utils.GasPriceHistoryCount.Name),
 		RejectLowGasPriceTransactions:          ctx.Bool(utils.RejectLowGasPriceTransactions.Name),
 		RejectLowGasPriceTolerance:             ctx.Float64(utils.RejectLowGasPriceTolerance.Name),
+
+		// SBB
+		Mode:                       ctx.String(utils.Mode.Name),
+		MaxSbbFinalizationCapacity: ctx.Int(utils.MaxSbbFinalizationCapacity.Name),
+		RollupId:                   ctx.String(utils.RollupId.Name),
+		Platform:                   ctx.String(utils.Platform.Name),
+		PlatformUrl:                ctx.String(utils.PlatformUrl.Name),
+		LivenessContractAddress:    ctx.String(utils.LivenessContractAddress.Name),
+		ServiceType:                ctx.String(utils.ServiceType.Name),
+		ClusterId:                  ctx.String(utils.ClusterId.Name),
+		SeedNodeUrl:                ctx.String(utils.SeedNodeUrl.Name),
+		SequencerPrivateKey:        ctx.String(utils.SequencerPrivateKey.Name),
+		LighthouseUrl:              ctx.String(utils.LighthouseUrl.Name),
+		SlotTime:                   ctx.Int(utils.SlotTime.Name),
+		SbbUrl:                     ctx.String(utils.SbbUrl.Name),
 	}
 
 	utils2.EnableTimer(cfg.DebugTimers)
