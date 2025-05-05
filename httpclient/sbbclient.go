@@ -76,7 +76,6 @@ func (sc *HttpClient) Send(ctx context.Context, url string, body interface{}, re
 	return nil
 }
 
-// JSON-RPC 응답 형식 정의
 type JSONRPCResponse struct {
 	JSONRPC string          `json:"jsonrpc"`
 	Result  json.RawMessage `json:"result"`
