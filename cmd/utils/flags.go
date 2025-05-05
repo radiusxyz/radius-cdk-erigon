@@ -1517,7 +1517,7 @@ var (
 	Mode = cli.StringFlag{
 		Name:  "zkevm.mode",
 		Usage: "lighthouse, sbb, original",
-		Value: "original",
+		Value: "",
 	}
 	MaxSbbFinalizationCapacity = cli.UintFlag{
 		Name:  "zkevm.max-sbb-finalization-capacity",
