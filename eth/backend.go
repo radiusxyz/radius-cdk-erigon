@@ -1973,7 +1973,12 @@ func (s *Ethereum) Start() error {
 	// 		s.logger.Error("silkworm.SentryStart error", "err", err)
 	// 	}
 	// }
-
+	if s.lighthouseService != nil {
+		s.lighthouseService.Start()
+	}
+	if s.sbbService != nil {
+		s.sbbService.Start(context.Background())
+	}
 	return nil
 }
 

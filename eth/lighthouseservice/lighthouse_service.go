@@ -1,7 +1,6 @@
 package lighthouseservice
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
@@ -38,7 +37,7 @@ func NewLighthouseService(config *ethconfig.Config) (*LighthouseService, error) 
 	}, nil
 }
 
-func (l *LighthouseService) Start(ctx context.Context) {
+func (l *LighthouseService) Start() {
 	for i := 0; i < 1; i++ {
 		go l.ManageCh()
 	}
