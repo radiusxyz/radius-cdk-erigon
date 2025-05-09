@@ -12,6 +12,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type LighthouseService struct {
@@ -44,13 +45,15 @@ func (l *LighthouseService) Start() {
 
 	go l.ReadMessage()
 
-	signature, err := GetSignature(l.RollupId, l.SequencerPrivateKey)
+	timestamp := uint64(time.Now().Unix())
+	signature, err := GetSignature(l.RollupId, timestamp, l.SequencerPrivateKey)
 	if err != nil {
 		panic(err)
 	}
 
 	verifyRollupRequest := &requests.VerifyRollupRequest{
 		RollupId:  l.RollupId,
+		Timestamp: timestamp,
 		Signature: signature,
 	}
 
@@ -129,14 +132,16 @@ func LoadPrivateKey(hexPrivateKey string) (*ecdsa.PrivateKey, error) {
 	return privateKey, nil
 }
 
-func GetSignature(target, hexPrivateKey string) ([]byte, error) {
+func GetSignature(target string, timestamp uint64, hexPrivateKey string) ([]byte, error) {
 	privateKey, err := LoadPrivateKey(hexPrivateKey)
 	if err != nil {
 		return nil, err
 	}
 
+	message := fmt.Sprintf("%s|%d", target, timestamp)
+
 	hash := crypto.Keccak256Hash(
-		[]byte(target),
+		[]byte(message),
 	)
 
 	signature, err := crypto.Sign(hash.Bytes(), privateKey)
