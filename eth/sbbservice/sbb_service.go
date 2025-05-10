@@ -144,7 +144,7 @@ func (s *SbbService) getRawTransactions(ctx context.Context) ([][]byte, error) {
 		hexStr = strings.TrimPrefix(hexStr, "0x")
 		binary, err := hex.DecodeString(hexStr)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode transaction: %w", err)
+			logger.ColorPrintln(logger.Red, "failed to decode transaction: "+hexStr)
 		}
 		encodedTxs = append(encodedTxs, binary)
 	}
