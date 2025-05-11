@@ -1,4 +1,4 @@
-package lighthouseservice
+package lighthousewsclient
 
 import (
 	"crypto/ecdsa"
@@ -7,7 +7,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/ledgerwatch/erigon/crypto"
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
-	"github.com/ledgerwatch/erigon/eth/lighthouseservice/requests"
+	"github.com/ledgerwatch/erigon/eth/lighthousewsclient/requests"
 	"github.com/ledgerwatch/erigon/logger"
 	"io"
 	"strconv"
@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-type LighthouseService struct {
+type LighthouseWsClient struct {
 	*ethconfig.Config
 	conn       *websocket.Conn
 	leaveCh    chan struct{}
@@ -23,13 +23,13 @@ type LighthouseService struct {
 	handler    *LighthouseMessageHandler
 }
 
-func NewLighthouseService(config *ethconfig.Config) (*LighthouseService, error) {
+func NewLighthouseWsClient(config *ethconfig.Config) (*LighthouseWsClient, error) {
 	conn, _, err := websocket.DefaultDialer.Dial(config.LighthouseUrl, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	return &LighthouseService{
+	return &LighthouseWsClient{
 		Config:     config,
 		conn:       conn,
 		leaveCh:    make(chan struct{}),
@@ -38,7 +38,7 @@ func NewLighthouseService(config *ethconfig.Config) (*LighthouseService, error) 
 	}, nil
 }
 
-func (l *LighthouseService) Start() {
+func (l *LighthouseWsClient) Start() {
 	for i := 0; i < 1; i++ {
 		go l.ManageCh()
 	}
@@ -64,24 +64,26 @@ func (l *LighthouseService) Start() {
 	logger.Printf("rollup(%s) verification message sent", l.RollupId)
 }
 
-func (l *LighthouseService) CreateAuction(slotNumber int64, slotTime int) error {
+func (l *LighthouseWsClient) CreateAuction(slotNumber int64, slotTime uint64) (*uint64, error) {
+	auctionStartTimestamp := uint64(time.Now().Unix())
 	createAuctionRequest := &requests.CreateAuctionRequest{
-		RollupId:           l.RollupId,
-		SlotNumber:         slotNumber,
-		SlotTime:           slotTime,
-		LeaderTxOrdererUrl: l.SbbUrl,
+		RollupId:              l.RollupId,
+		SlotNumber:            slotNumber,
+		SlotTime:              slotTime,
+		AuctionStartTimestamp: auctionStartTimestamp,
+		LeaderTxOrdererUrl:    l.SbbUrl,
 	}
 	requestType := requests.CreateAuction
 	if err := l.handler.SendMessage(requestType, createAuctionRequest); err != nil {
-		return err
+		return nil, err
 	}
 
 	logger.ColorPrintln(logger.BrightCyan, "Sent auction creation message. slotNumber: "+strconv.FormatInt(slotNumber, 10))
 
-	return nil
+	return &auctionStartTimestamp, nil
 }
 
-func (l *LighthouseService) ReadMessage() {
+func (l *LighthouseWsClient) ReadMessage() {
 	defer func() {
 		l.leaveCh <- struct{}{}
 	}()
@@ -100,7 +102,7 @@ func (l *LighthouseService) ReadMessage() {
 	}
 }
 
-func (l *LighthouseService) ManageCh() {
+func (l *LighthouseWsClient) ManageCh() {
 	for {
 		select {
 		case <-l.leaveCh:
@@ -114,11 +116,11 @@ func (l *LighthouseService) ManageCh() {
 	}
 }
 
-func (l *LighthouseService) Close() error {
+func (l *LighthouseWsClient) Close() error {
 	return l.conn.Close()
 }
 
-func (l *LighthouseService) WriteCloseMessage() error {
+func (l *LighthouseWsClient) WriteCloseMessage() error {
 	return l.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 }
 

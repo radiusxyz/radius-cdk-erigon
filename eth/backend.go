@@ -21,7 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ledgerwatch/erigon/eth/lighthouseservice"
+	"github.com/ledgerwatch/erigon/eth/lighthousewsclient"
 	"github.com/ledgerwatch/erigon/eth/sbbservice"
 	"io/fs"
 	"math/big"
@@ -242,8 +242,8 @@ type Ethereum struct {
 	stopNode           func() error
 	gasTracker         *jsonrpc.RecurringL1GasPriceTracker
 
-	sbbService        *sbbservice.SbbService
-	lighthouseService *lighthouseservice.LighthouseService
+	sbbService         *sbbservice.SbbService
+	lighthouseWsClient *lighthousewsclient.LighthouseWsClient
 }
 
 func splitAddrIntoHostAndPort(addr string) (host string, port int, err error) {
@@ -1188,17 +1188,17 @@ func New(ctx context.Context, stack *node.Node, config *ethconfig.Config, logger
 			)
 
 			if config.Mode == "lighthouse" {
-				backend.lighthouseService, err = lighthouseservice.NewLighthouseService(config)
+				backend.lighthouseWsClient, err = lighthousewsclient.NewLighthouseWsClient(config)
 				if err != nil {
 					return nil, err
 				}
 
-				backend.sbbService, err = sbbservice.NewSbbService(config, backend, backend.lighthouseService)
+				backend.sbbService, err = sbbservice.NewSbbService(config, backend, backend.lighthouseWsClient)
 				if err != nil {
 					return nil, err
 				}
 			} else if config.Mode == "sbb" {
-				backend.sbbService, err = sbbservice.NewSbbService(config, backend, backend.lighthouseService)
+				backend.sbbService, err = sbbservice.NewSbbService(config, backend, backend.lighthouseWsClient)
 				if err != nil {
 					return nil, err
 				}
@@ -1973,8 +1973,8 @@ func (s *Ethereum) Start() error {
 	// 		s.logger.Error("silkworm.SentryStart error", "err", err)
 	// 	}
 	// }
-	if s.lighthouseService != nil {
-		s.lighthouseService.Start()
+	if s.lighthouseWsClient != nil {
+		s.lighthouseWsClient.Start()
 	}
 	if s.sbbService != nil {
 		s.sbbService.Start(context.Background())

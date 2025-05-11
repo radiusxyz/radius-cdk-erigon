@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
-	"github.com/ledgerwatch/erigon/eth/lighthouseservice"
+	"github.com/ledgerwatch/erigon/eth/lighthousewsclient"
 	"github.com/ledgerwatch/erigon/httpclient"
 	"github.com/ledgerwatch/erigon/logger"
 	"strconv"
@@ -32,7 +32,7 @@ type BlockchainService interface {
 
 type SbbService struct {
 	*ethconfig.Config
-	LighthouseService        *lighthouseservice.LighthouseService
+	lighthouseWsClient       *lighthousewsclient.LighthouseWsClient
 	blockchain               BlockchainService
 	httpClient               *httpclient.HttpClient
 	auctionCreatedSlotNumber int64
@@ -40,12 +40,12 @@ type SbbService struct {
 	slotTransactionsCh       chan *SlotTransactions
 }
 
-func NewSbbService(config *ethconfig.Config, blockchainService BlockchainService, lighthouseService *lighthouseservice.LighthouseService) (*SbbService, error) {
+func NewSbbService(config *ethconfig.Config, blockchainService BlockchainService, LighthouseWsClient *lighthousewsclient.LighthouseWsClient) (*SbbService, error) {
 	httpClient := httpclient.New()
 
 	return &SbbService{
 		Config:                   config,
-		LighthouseService:        lighthouseService,
+		lighthouseWsClient:       LighthouseWsClient,
 		blockchain:               blockchainService,
 		httpClient:               httpClient,
 		auctionCreatedSlotNumber: -1,
@@ -82,17 +82,20 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 		case <-timer.C:
 			startTime := time.Now().UnixMilli()
 
-			if s.LighthouseService != nil && s.auctionCreatedSlotNumber <= s.fetchedTxsSlotNumber+1 {
+			var auctionStartTimestamp *uint64 = nil
+			var err error
+			if s.lighthouseWsClient != nil && s.auctionCreatedSlotNumber <= s.fetchedTxsSlotNumber+1 {
 				creatingAuctionSlotNumber := s.fetchedTxsSlotNumber + 2
-				if err := s.LighthouseService.CreateAuction(creatingAuctionSlotNumber, s.SlotTime); err != nil {
+				auctionStartTimestamp, err = s.lighthouseWsClient.CreateAuction(creatingAuctionSlotNumber, s.SlotTime)
+				if err != nil {
 					fmt.Println("failed to create auction, error: ", err.Error())
 				} else {
 					s.auctionCreatedSlotNumber = creatingAuctionSlotNumber
 				}
 			}
 
-			if err := Retry(ctx, func() error {
-				transactions, err := s.getRawTransactions(ctx)
+			if err = Retry(ctx, func() error {
+				transactions, err := s.getRawTransactions(ctx, auctionStartTimestamp)
 				if err != nil {
 					fmt.Println("failed to get raw transactions, error: ", err.Error())
 					return err
@@ -118,17 +121,18 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 	}
 }
 
-func (s *SbbService) getRawTransactions(ctx context.Context) ([][]byte, error) {
+func (s *SbbService) getRawTransactions(ctx context.Context, auctionStartTimestamp *uint64) ([][]byte, error) {
 	reqCtx, reqCancel := context.WithTimeout(ctx, 2*time.Second)
 	defer reqCancel()
 
 	fetchingTxsSlotNumber := s.fetchedTxsSlotNumber + 1
 
 	params := GetRawTransactionsParams{
-		RollupId:               s.RollupId,
-		Mode:                   s.Mode,
-		SlotNumber:             fetchingTxsSlotNumber,
-		NextSlotAuctionCreated: s.auctionCreatedSlotNumber == fetchingTxsSlotNumber+1,
+		RollupId:                      s.RollupId,
+		Mode:                          s.Mode,
+		SlotNumber:                    fetchingTxsSlotNumber,
+		NextSlotAuctionCreated:        s.auctionCreatedSlotNumber == fetchingTxsSlotNumber+1,
+		NextSlotAuctionStartTimestamp: auctionStartTimestamp,
 	}
 
 	body := newJsonRpcRequest(GetRawTransactionList, params)

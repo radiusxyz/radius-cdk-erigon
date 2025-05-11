@@ -120,7 +120,7 @@ type Zk struct {
 	SeedNodeUrl                string
 	SequencerPrivateKey        string
 	LighthouseUrl              string
-	SlotTime                   int
+	SlotTime                   uint64
 	SbbUrl                     string
 }
 

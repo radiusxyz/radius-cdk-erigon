@@ -250,7 +250,7 @@ func ApplyFlagsForZkConfig(ctx *cli.Context, cfg *ethconfig.Config) {
 		SeedNodeUrl:                ctx.String(utils.SeedNodeUrl.Name),
 		SequencerPrivateKey:        ctx.String(utils.SequencerPrivateKey.Name),
 		LighthouseUrl:              ctx.String(utils.LighthouseUrl.Name),
-		SlotTime:                   ctx.Int(utils.SlotTime.Name),
+		SlotTime:                   ctx.Uint64(utils.SlotTime.Name),
 		SbbUrl:                     ctx.String(utils.SbbUrl.Name),
 	}
 

@@ -1,13 +1,13 @@
-package lighthouseservice
+package lighthousewsclient
 
 import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/ledgerwatch/erigon/eth/lighthouseservice/events"
-	"github.com/ledgerwatch/erigon/eth/lighthouseservice/requests"
-	"github.com/ledgerwatch/erigon/eth/lighthouseservice/responses"
+	"github.com/ledgerwatch/erigon/eth/lighthousewsclient/events"
+	"github.com/ledgerwatch/erigon/eth/lighthousewsclient/requests"
+	"github.com/ledgerwatch/erigon/eth/lighthousewsclient/responses"
 	"github.com/ledgerwatch/erigon/logger"
 )
 
