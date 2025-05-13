@@ -1076,7 +1076,7 @@ func (p *TxPool) addTxs(blockNum uint64, cacheView kvcache.CacheView, senders *s
 	if p.mode == "original" {
 		promote(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
 	} else {
-		promoteForTxOrderer(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
+		promoteForRadius(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
 	}
 
 	return announcements, discardReasons, nil
@@ -1167,7 +1167,11 @@ func (p *TxPool) addTxsOnNewBlock(
 			protocolBaseFee, blockGasLimit, pending, baseFee, queued, discard)
 	}
 
-	promote(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
+	if p.mode == "original" {
+		promote(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
+	} else {
+		promoteForRadius(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
+	}
 
 	return announcements, nil
 }
@@ -1326,7 +1330,7 @@ func removeMined(byNonce *BySenderAndNonce, minedTxs []*types.TxSlot, pending *P
 
 // promote reasserts invariants of the subpool and returns the list of transactions that ended up
 // being promoted to the pending or basefee pool, for re-broadcasting
-func promoteForTxOrderer(pending *PendingPool, baseFee, queued *SubPool, pendingBaseFee uint64, discard func(*metaTx, DiscardReason), announcements *types.Announcements) {
+func promoteForRadius(pending *PendingPool, baseFee, queued *SubPool, pendingBaseFee uint64, discard func(*metaTx, DiscardReason), announcements *types.Announcements) {
 	// Demote worst transactions that do not qualify for pending sub pool anymore, to other sub pools, or discard
 	for worst := pending.Worst(); pending.Len() > 0 && (worst.subPool < BaseFeePoolBits || worst.minFeeCap.Cmp(uint256.NewInt(pendingBaseFee)) < 0); worst = pending.Worst() {
 		if worst.subPool >= BaseFeePoolBits {
