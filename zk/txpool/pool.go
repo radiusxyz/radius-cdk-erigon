@@ -150,6 +150,7 @@ const (
 	SmartContractDeploymentDisabled DiscardReason = 28 // to == null not allowed, config set to block smart contract deployment
 	GasLimitTooHigh                 DiscardReason = 29 // gas limit is too high
 	Expired                         DiscardReason = 30 // used when a transaction is purged from the pool
+	MissedPendingTx                 DiscardReason = 31 // Radius
 )
 
 func (r DiscardReason) String() string {
