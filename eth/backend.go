@@ -663,7 +663,7 @@ func New(ctx context.Context, stack *node.Node, config *ethconfig.Config, logger
 		backend.newTxs2 = make(chan libtypes.Announcements, 1024)
 		//defer close(newTxs)
 		backend.txPool2DB, backend.txPool2, backend.txPool2Fetch, backend.txPool2Send, backend.txPool2GrpcServer, err = txpooluitl.AllComponents(
-			ctx, config.TxPool, config, kvcache.NewDummy(), backend.newTxs2, backend.chainDB, backend.sentriesClient.Sentries(), stateDiffClient,
+			ctx, config.TxPool, config, kvcache.NewDummy(), backend.newTxs2, backend.chainDB, backend.sentriesClient.Sentries(), stateDiffClient, &config.Mode,
 		)
 		if err != nil {
 			return nil, err

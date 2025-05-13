@@ -1073,7 +1073,11 @@ func (p *TxPool) addTxs(blockNum uint64, cacheView kvcache.CacheView, senders *s
 			protocolBaseFee, blockGasLimit, pending, baseFee, queued, discard)
 	}
 
-	promote(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
+	if p.mode == "original" {
+		promote(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
+	} else {
+		promoteForTxOrderer(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
+	}
 
 	return announcements, discardReasons, nil
 }
