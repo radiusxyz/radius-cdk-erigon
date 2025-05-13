@@ -144,6 +144,8 @@ func AllComponents(ctx context.Context, cfg txpoolcfg.Config, ethCfg *ethconfig.
 		return nil, nil, nil, nil, nil, err
 	}
 
+	txpool.SetMode(*mode)
+
 	if err = txPoolDB.Update(ctx, func(tx kv.RwTx) error {
 		return txpool.CreateTxPoolBuckets(tx)
 	}); err != nil {
