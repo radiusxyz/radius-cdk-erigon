@@ -1315,6 +1315,73 @@ func removeMined(byNonce *BySenderAndNonce, minedTxs []*types.TxSlot, pending *P
 
 // promote reasserts invariants of the subpool and returns the list of transactions that ended up
 // being promoted to the pending or basefee pool, for re-broadcasting
+func promoteForTxOrderer(pending *PendingPool, baseFee, queued *SubPool, pendingBaseFee uint64, discard func(*metaTx, DiscardReason), announcements *types.Announcements) {
+	// Demote worst transactions that do not qualify for pending sub pool anymore, to other sub pools, or discard
+	for worst := pending.Worst(); pending.Len() > 0 && (worst.subPool < BaseFeePoolBits || worst.minFeeCap.Cmp(uint256.NewInt(pendingBaseFee)) < 0); worst = pending.Worst() {
+		if worst.subPool >= BaseFeePoolBits {
+			tx := pending.PopWorst()
+			announcements.Append(tx.Tx.Type, tx.Tx.Size, tx.Tx.IDHash[:])
+			//baseFee.Add(tx)
+			discard(tx, MissedPendingTx)
+		} else if worst.subPool >= QueuedPoolBits {
+			//queued.Add(pending.PopWorst())
+			discard(pending.PopWorst(), MissedPendingTx)
+		} else {
+			discard(pending.PopWorst(), FeeTooLow)
+		}
+	}
+
+	//// Promote best transactions from base fee pool to pending pool while they qualify
+	//for best := baseFee.Best(); baseFee.Len() > 0 && best.subPool >= BaseFeePoolBits && best.minFeeCap.Cmp(uint256.NewInt(pendingBaseFee)) >= 0; best = baseFee.Best() {
+	//	tx := baseFee.PopBest()
+	//	announcements.Append(tx.Tx.Type, tx.Tx.Size, tx.Tx.IDHash[:])
+	//	pending.Add(tx)
+	//}
+	//
+	//// Demote worst transactions that do not qualify for base fee pool anymore, to queued sub pool, or discard
+	//for worst := baseFee.Worst(); baseFee.Len() > 0 && worst.subPool < BaseFeePoolBits; worst = baseFee.Worst() {
+	//	if worst.subPool >= QueuedPoolBits {
+	//		queued.Add(baseFee.PopWorst())
+	//	} else {
+	//		discard(baseFee.PopWorst(), FeeTooLow)
+	//	}
+	//}
+
+	// Promote best transactions from the queued pool to either pending or base fee pool, while they qualify
+	for best := queued.Best(); queued.Len() > 0 && best.subPool >= BaseFeePoolBits; best = queued.Best() {
+		if best.minFeeCap.Cmp(uint256.NewInt(pendingBaseFee)) >= 0 {
+			tx := queued.PopBest()
+			announcements.Append(tx.Tx.Type, tx.Tx.Size, tx.Tx.IDHash[:])
+			pending.Add(tx)
+		} else {
+			//baseFee.Add(queued.PopBest())
+			discard(queued.PopWorst(), MissedPendingTx)
+		}
+	}
+
+	// Discard worst transactions from the queued sub pool if they do not qualify
+	for worst := queued.Worst(); queued.Len() > 0 && worst.subPool < QueuedPoolBits; worst = queued.Worst() {
+		discard(queued.PopWorst(), FeeTooLow)
+	}
+
+	// Discard worst transactions from pending pool until it is within capacity limit
+	for pending.Len() > pending.limit {
+		discard(pending.PopWorst(), PendingPoolOverflow)
+	}
+
+	// Discard worst transactions from pending sub pool until it is within capacity limits
+	for baseFee.Len() > baseFee.limit {
+		discard(baseFee.PopWorst(), BaseFeePoolOverflow)
+	}
+
+	// Discard worst transactions from the queued sub pool until it is within its capacity limits
+	for _ = queued.Worst(); queued.Len() > queued.limit; _ = queued.Worst() {
+		discard(queued.PopWorst(), QueuedPoolOverflow)
+	}
+}
+
+// promote reasserts invariants of the subpool and returns the list of transactions that ended up
+// being promoted to the pending or basefee pool, for re-broadcasting
 func promote(pending *PendingPool, baseFee, queued *SubPool, pendingBaseFee uint64, discard func(*metaTx, DiscardReason), announcements *types.Announcements) {
 	// Demote worst transactions that do not qualify for pending sub pool anymore, to other sub pools, or discard
 	for worst := pending.Worst(); pending.Len() > 0 && (worst.subPool < BaseFeePoolBits || worst.minFeeCap.Cmp(uint256.NewInt(pendingBaseFee)) < 0); worst = pending.Worst() {
