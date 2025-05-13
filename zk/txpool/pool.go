@@ -336,6 +336,8 @@ type TxPool struct {
 
 	// limbo specific fields where bad batch transactions identified by the executor go
 	limbo *Limbo
+
+	mode string
 }
 
 func CreateTxPoolBuckets(tx kv.RwTx) error {
@@ -391,6 +393,10 @@ func New(newTxs chan types.Announcements, coreDB kv.RoDB, cfg txpoolcfg.Config, 
 		aclDB:                   aclDB,
 		limbo:                   newLimbo(),
 	}, nil
+}
+
+func (p *TxPool) SetMode(mode string) {
+	p.mode = mode
 }
 
 func (p *TxPool) OnNewBlock(ctx context.Context, stateChanges *remote.StateChangeBatch, unwindTxs, minedTxs types.TxSlots, tx kv.Tx) error {
