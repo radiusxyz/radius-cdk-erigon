@@ -325,6 +325,8 @@ func (s *SbbClient) finalizeBlock(ctx context.Context, platformBlockNumber uint6
 		//return nil
 	}
 
+	*leaderTxOrdererIndex = 0 // Todo: Temp
+
 	txOrdererCount := len(txOrdererRpcUrls)
 
 	for i := 0; i < txOrdererCount; i++ {
@@ -332,6 +334,8 @@ func (s *SbbClient) finalizeBlock(ctx context.Context, platformBlockNumber uint6
 		if err != nil {
 			return err
 		}
+
+		*nextTxOrdererIndex = 0 // Todo: Temp
 
 		finalizingBlockNumber := s.finalizedBlockNumber + 1
 		message := FinalizeBlockMessageParams{
