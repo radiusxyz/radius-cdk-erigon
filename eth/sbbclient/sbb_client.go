@@ -114,7 +114,6 @@ func (s *SbbClient) requestToSbb() {
 	for {
 		select {
 		case <-timer.C:
-			fmt.Println("restart-test-youngmin")
 			startTime := time.Now().UnixMilli()
 
 			var err error
@@ -366,7 +365,7 @@ func (s *SbbClient) finalizeBlock(ctx context.Context, platformBlockNumber uint6
 			Message:   message,
 			Signature: "0x" + Bytes2Hex(signature),
 		}
-		fmt.Println("youngmin - params: ", params.Signature)
+
 		log.Debug("Finalizing the contents to be included in the block", "block number: ", finalizingBlockNumber)
 
 		body := newJsonRpcRequest(FinalizeBlock, params)
