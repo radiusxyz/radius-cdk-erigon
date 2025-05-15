@@ -114,6 +114,7 @@ func (s *SbbClient) requestToSbb() {
 	for {
 		select {
 		case <-timer.C:
+			fmt.Println("restart-test-youngmin")
 			startTime := time.Now().UnixMilli()
 
 			var err error
