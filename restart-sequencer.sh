@@ -1,10 +1,19 @@
-make cdk-erigon
+# 1. Build
+make cdk-erigon && echo "[✔] Successfully built cdk-erigon binary"
 
-docker cp ./build/bin/cdk-erigon cdk-erigon-sequencer-001--2fa28f045b174a42b471b95b9ba6c42e:/usr/local/bin/cdk-erigon
+# 2. Copy binary into container
+docker cp ./build/bin/cdk-erigon cdk-erigon-sequencer-001--2fa28f045b174a42b471b95b9ba6c42e:/usr/local/bin/cdk-erigon \
+  && echo "[✔] Successfully copied binary into container"
 
-docker exec -it cdk-erigon-sequencer-001--2fa28f045b174a42b471b95b9ba6c42e chmod +x /usr/local/bin/cdk-erigon
+# 3. Grant execution permission
+docker exec -it cdk-erigon-sequencer-001--2fa28f045b174a42b471b95b9ba6c42e chmod +x /usr/local/bin/cdk-erigon \
+  && echo "[✔] Granted executable permission to binary"
 
-docker exec -it cdk-erigon-sequencer-001--2fa28f045b174a42b471b95b9ba6c42e pkill cdk-erigon
+# 4. Kill existing process
+docker exec -it cdk-erigon-sequencer-001--2fa28f045b174a42b471b95b9ba6c42e pkill cdk-erigon \
+  && echo "[✔] Terminated existing cdk-erigon process"
 
+# 5. Start new process
 docker exec -it cdk-erigon-sequencer-001--2fa28f045b174a42b471b95b9ba6c42e \
-  /usr/local/share/proc-runner/proc-runner.sh cdk-erigon --config /etc/cdk-erigon/config.yaml
+  /usr/local/share/proc-runner/proc-runner.sh /usr/local/bin/cdk-erigon --config /etc/cdk-erigon/config.yaml \
+  && echo "[✔] Successfully started new cdk-erigon process"
