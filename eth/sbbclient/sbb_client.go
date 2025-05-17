@@ -408,6 +408,7 @@ func Bytes2Hex(d []byte) string {
 }
 
 func NewPrivateKeyFromHexKey(hexKey string) (*ecdsa.PrivateKey, error) {
+	hexKey = strings.TrimPrefix(hexKey, "0x")
 	key, err := crypto.HexToECDSA(hexKey)
 	if err != nil {
 		return nil, err
