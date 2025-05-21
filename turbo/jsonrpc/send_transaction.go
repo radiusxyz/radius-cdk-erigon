@@ -66,8 +66,9 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encodedTx hexutility
 		return common.Hash{}, err
 	}
 
-	admin := common.HexToAddress("0xE34aaF64b29273B7D567FCFc40544c014EEe9970")
-	if api.useTxOrderer && sender != admin {
+	//admin := common.HexToAddress("0xE34aaF64b29273B7D567FCFc40544c014EEe9970")
+	fmt.Println("youngmin - admin: ", api.addressAdmin)
+	if api.useTxOrderer && sender != api.addressAdmin {
 		return common.Hash{}, fmt.Errorf("direct transaction submission is disabled; please use the txOrderer")
 	}
 

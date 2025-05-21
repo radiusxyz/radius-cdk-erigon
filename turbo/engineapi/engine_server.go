@@ -90,10 +90,11 @@ func (e *EngineServer) Start(
 	mining txpool.MiningClient,
 	gasTracker *jsonrpc.RecurringL1GasPriceTracker,
 	useTxOrderer bool,
+	addressAdmin libcommon.Address,
 ) {
 	base := jsonrpc.NewBaseApi(filters, stateCache, blockReader, agg, httpConfig.WithDatadir, httpConfig.EvmCallTimeout, engineReader, httpConfig.Dirs)
 
-	ethImpl := jsonrpc.NewEthAPI(base, db, eth, txPool, mining, httpConfig.Gascap, httpConfig.Feecap, httpConfig.ReturnDataLimit, &ethconfig.Defaults, httpConfig.AllowUnprotectedTxs, httpConfig.MaxGetProofRewindBlockCount, httpConfig.WebsocketSubscribeLogsChannelSize, e.logger, gasTracker, httpConfig.LogsMaxRange, useTxOrderer)
+	ethImpl := jsonrpc.NewEthAPI(base, db, eth, txPool, mining, httpConfig.Gascap, httpConfig.Feecap, httpConfig.ReturnDataLimit, &ethconfig.Defaults, httpConfig.AllowUnprotectedTxs, httpConfig.MaxGetProofRewindBlockCount, httpConfig.WebsocketSubscribeLogsChannelSize, e.logger, gasTracker, httpConfig.LogsMaxRange, useTxOrderer, addressAdmin)
 
 	// engineImpl := NewEngineAPI(base, db, engineBackend)
 	// e.startEngineMessageHandler()
