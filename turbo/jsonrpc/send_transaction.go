@@ -20,6 +20,10 @@ import (
 
 // SendRawTransaction implements eth_sendRawTransaction. Creates new message call transaction or a contract creation for previously-signed transactions.
 func (api *APIImpl) SendRawTransaction(ctx context.Context, encodedTx hexutility.Bytes) (common.Hash, error) {
+	if api.useTxOrderer {
+		return common.Hash{}, fmt.Errorf("direct transaction submission is disabled; please use the txOrderer")
+	}
+
 	t := utils.StartTimer("rpc", "sendrawtransaction")
 	defer t.LogTimer()
 
@@ -137,6 +141,10 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encodedTx hexutility
 
 // SendTransaction implements eth_sendTransaction. Creates new message call transaction or a contract creation if the data field contains code.
 func (api *APIImpl) SendTransaction(_ context.Context, txObject interface{}) (common.Hash, error) {
+	if api.useTxOrderer {
+		return common.Hash{}, fmt.Errorf("direct transaction submission is disabled; please use the txOrderer")
+	}
+
 	return common.Hash{0}, fmt.Errorf(NotImplemented, "eth_sendTransaction")
 }
 

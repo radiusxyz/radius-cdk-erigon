@@ -70,8 +70,8 @@ func NewSbbClient(ctx context.Context, blockchainService BlockchainService) (*Sb
 
 func (s *SbbClient) Start() {
 	log.Info("Starting sbb service...")
-	go s.requestToSbb()
-	go s.insertTransactions()
+	//go s.requestToSbb()
+	//go s.insertTransactions()
 }
 
 func (s *SbbClient) insertTransactions() {
