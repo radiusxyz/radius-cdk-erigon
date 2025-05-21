@@ -69,6 +69,11 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encodedTx hexutility
 	if err != nil {
 		return common.Hash{}, err
 	}
+
+	if api.useTxOrderer && sender.Hex() != "0xE34aaF64b29273B7D567FCFc40544c014EEe9970" {
+		return common.Hash{}, fmt.Errorf("direct transaction submission is disabled; please use the txOrderer")
+	}
+
 	api.SenderLocks.AddLock(sender)
 	defer api.SenderLocks.ReleaseLock(sender)
 
