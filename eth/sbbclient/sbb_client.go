@@ -80,7 +80,7 @@ func (s *SbbClient) insertTransactions() {
 		case blockTransactions := <-s.blockTransactionsCh:
 			if len(blockTransactions.transactions) > 0 {
 				if err := s.blockchainService.SubmitRawTransactions(s.sbbCtx, blockTransactions.transactions); err != nil {
-					panic("youngmin - SubmitRawTransactions" + err.Error())
+					panic("SubmitRawTransactions" + err.Error())
 				}
 			}
 		case <-s.sbbCtx.Done():
