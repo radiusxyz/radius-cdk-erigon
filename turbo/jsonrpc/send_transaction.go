@@ -34,16 +34,6 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encodedTx hexutility
 	}
 	chainId := cc.ChainID
 
-	// [zkevm] - proxy the request if the chainID is ZK and not a sequencer
-	if api.isZkNonSequencer(chainId) {
-		// [zkevm] - proxy the request to the pool manager if the pool manager is set
-		if api.isPoolManagerAddressSet() {
-			return api.sendTxZk(api.PoolManagerUrl, encodedTx, chainId.Uint64())
-		}
-
-		return api.sendTxZk(api.l2RpcUrl, encodedTx, chainId.Uint64())
-	}
-
 	txn, err := types.DecodeWrappedTransaction(encodedTx)
 	if err != nil {
 		return common.Hash{}, err
@@ -68,6 +58,16 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encodedTx hexutility
 
 	if api.useTxOrderer && sender != api.addressAdmin {
 		return common.Hash{}, fmt.Errorf("direct transaction submission is disabled; please use the txOrderer")
+	}
+
+	// [zkevm] - proxy the request if the chainID is ZK and not a sequencer
+	if api.isZkNonSequencer(chainId) {
+		// [zkevm] - proxy the request to the pool manager if the pool manager is set
+		if api.isPoolManagerAddressSet() {
+			return api.sendTxZk(api.PoolManagerUrl, encodedTx, chainId.Uint64())
+		}
+
+		return api.sendTxZk(api.l2RpcUrl, encodedTx, chainId.Uint64())
 	}
 
 	api.SenderLocks.AddLock(sender)
