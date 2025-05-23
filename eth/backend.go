@@ -2141,7 +2141,6 @@ func (s *Ethereum) DataDir() string {
 }
 
 func (s *Ethereum) GetBlockNumber() (*uint64, error) {
-
 	var latestBlock *uint64
 	err := s.chainDB.View(context.Background(), func(tx kv.Tx) error {
 		ss, err := s.stagedSync.StageState(stages.Execution, tx, s.chainDB)
