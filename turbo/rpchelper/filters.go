@@ -35,6 +35,7 @@ type Filters struct {
 	pendingLogsSubs  *SyncMap[PendingLogsSubID, Sub[types.Logs]]
 	pendingBlockSubs *SyncMap[PendingBlockSubID, Sub[*types.Block]]
 	pendingTxsSubs   *SyncMap[PendingTxsSubID, Sub[[]types.Transaction]]
+	bobTxsSubs       *SyncMap[BobTxsSubID, Sub[[][]byte]]
 	logsSubs         *LogsFilterAggregator
 	logsRequestor    atomic.Value
 	onNewSnapshot    func()
@@ -43,6 +44,7 @@ type Filters struct {
 	logsStores         *SyncMap[LogsSubID, []*types.Log]
 	pendingHeadsStores *SyncMap[HeadsSubID, []*types.Header]
 	pendingTxsStores   *SyncMap[PendingTxsSubID, [][]types.Transaction]
+	bobTxsStores       *SyncMap[BobTxsSubID, [][][]byte]
 	logger             log.Logger
 }
 
@@ -52,6 +54,7 @@ func New(ctx context.Context, ethBackend ApiBackend, txPool txpool.TxpoolClient,
 	ff := &Filters{
 		headsSubs:          NewSyncMap[HeadsSubID, Sub[*types.Header]](),
 		pendingTxsSubs:     NewSyncMap[PendingTxsSubID, Sub[[]types.Transaction]](),
+		bobTxsSubs:         NewSyncMap[BobTxsSubID, Sub[[][]byte]](),
 		pendingLogsSubs:    NewSyncMap[PendingLogsSubID, Sub[types.Logs]](),
 		pendingBlockSubs:   NewSyncMap[PendingBlockSubID, Sub[*types.Block]](),
 		logsSubs:           NewLogsFilterAggregator(),
@@ -59,6 +62,7 @@ func New(ctx context.Context, ethBackend ApiBackend, txPool txpool.TxpoolClient,
 		logsStores:         NewSyncMap[LogsSubID, []*types.Log](),
 		pendingHeadsStores: NewSyncMap[HeadsSubID, []*types.Header](),
 		pendingTxsStores:   NewSyncMap[PendingTxsSubID, [][]types.Transaction](),
+		bobTxsStores:       NewSyncMap[BobTxsSubID, [][][]byte](),
 		logger:             logger,
 	}
 
@@ -367,6 +371,26 @@ func (ff *Filters) UnsubscribePendingTxs(id PendingTxsSubID) bool {
 	return true
 }
 
+func (ff *Filters) SubscribeBobTxs(size int) (<-chan [][]byte, BobTxsSubID) {
+	id := BobTxsSubID(generateSubscriptionID())
+	sub := newChanSub[[][]byte](size)
+	ff.bobTxsSubs.Put(id, sub)
+	return sub.ch, id
+}
+
+func (ff *Filters) UnsubscribeBobTxs(id BobTxsSubID) bool {
+	ch, ok := ff.bobTxsSubs.Get(id)
+	if !ok {
+		return false
+	}
+	ch.Close()
+	if _, ok = ff.bobTxsSubs.Delete(id); !ok {
+		return false
+	}
+	ff.bobTxsStores.Delete(id)
+	return true
+}
+
 func (ff *Filters) SubscribeLogs(size int, crit filters.FilterCriteria) (<-chan *types.Log, LogsSubID) {
 	sub := newChanSub[*types.Log](size)
 	id, f := ff.logsSubs.insertLogsFilter(sub)
@@ -536,6 +560,13 @@ func (ff *Filters) OnNewTx(reply *txpool.OnAddReply) {
 		}
 	}
 	ff.pendingTxsSubs.Range(func(k PendingTxsSubID, v Sub[[]types.Transaction]) error {
+		v.Send(txs)
+		return nil
+	})
+}
+
+func (ff *Filters) OnNewBobTxs(txs [][]byte) {
+	ff.bobTxsSubs.Range(func(k BobTxsSubID, v Sub[[][]byte]) error {
 		v.Send(txs)
 		return nil
 	})

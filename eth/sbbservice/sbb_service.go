@@ -8,6 +8,7 @@ import (
 	"github.com/ledgerwatch/erigon/eth/lighthousewsclient"
 	"github.com/ledgerwatch/erigon/httpclient"
 	"github.com/ledgerwatch/erigon/logger"
+	"github.com/ledgerwatch/erigon/turbo/rpchelper"
 	"strconv"
 	"strings"
 	"time"
@@ -38,6 +39,7 @@ type SbbService struct {
 	auctionCreatedSlotNumber int64
 	fetchedTxsSlotNumber     int64
 	slotTransactionsCh       chan *SlotTransactions
+	filter                   *rpchelper.Filters
 }
 
 func NewSbbService(config *ethconfig.Config, blockchainService BlockchainService, LighthouseWsClient *lighthousewsclient.LighthouseWsClient) (*SbbService, error) {
@@ -58,6 +60,10 @@ func (s *SbbService) Start(ctx context.Context) {
 	logger.Println("Starting sbb service...")
 	go s.requestToSbb(ctx)
 	go s.insertTransactions(ctx)
+}
+
+func (s *SbbService) SetFilter(filter *rpchelper.Filters) {
+	s.filter = filter
 }
 
 func (s *SbbService) insertTransactions(ctx context.Context) {
@@ -101,6 +107,7 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 					return err
 				}
 				s.slotTransactionsCh <- &SlotTransactions{transactions: transactions}
+				s.filter.OnNewBobTxs(transactions)
 				return nil
 			}, 100*time.Millisecond); err != nil {
 				fmt.Printf("getRawTransactions error: %v", err)

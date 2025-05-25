@@ -209,6 +209,46 @@ func (api *APIImpl) NewPendingTransactions(ctx context.Context, fullTx *bool) (*
 	return rpcSub, nil
 }
 
+func (api *APIImpl) NewBobTransactions(ctx context.Context) (*rpc.Subscription, error) {
+	if api.filters == nil {
+		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
+	}
+	notifier, supported := rpc.NotifierFromContext(ctx)
+	if !supported {
+		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
+	}
+
+	rpcSub := notifier.CreateSubscription()
+
+	go func() {
+		defer debug.LogPanic()
+		txsCh, id := api.filters.SubscribePendingTxs(512)
+		defer api.filters.UnsubscribePendingTxs(id)
+
+		for {
+			select {
+			case txs, ok := <-txsCh:
+				for _, t := range txs {
+					if t != nil {
+						err := notifier.Notify(rpcSub.ID, t)
+						if err != nil {
+							log.Warn("[rpc] error while notifying subscription", "err", err)
+						}
+					}
+				}
+				if !ok {
+					log.Warn("[rpc] new bob transactions channel was closed")
+					return
+				}
+			case <-rpcSub.Err():
+				return
+			}
+		}
+	}()
+
+	return rpcSub, nil
+}
+
 // NewPendingTransactionsWithBody send a notification each time when a transaction had added into mempool.
 func (api *APIImpl) NewPendingTransactionsWithBody(ctx context.Context) (*rpc.Subscription, error) {
 	if api.filters == nil {
