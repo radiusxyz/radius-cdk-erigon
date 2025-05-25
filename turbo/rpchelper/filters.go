@@ -35,7 +35,7 @@ type Filters struct {
 	pendingLogsSubs  *SyncMap[PendingLogsSubID, Sub[types.Logs]]
 	pendingBlockSubs *SyncMap[PendingBlockSubID, Sub[*types.Block]]
 	pendingTxsSubs   *SyncMap[PendingTxsSubID, Sub[[]types.Transaction]]
-	bobTxsSubs       *SyncMap[BobTxsSubID, Sub[[][]byte]]
+	bobTxsSubs       *SyncMap[BobTxsSubID, Sub[[]string]]
 	logsSubs         *LogsFilterAggregator
 	logsRequestor    atomic.Value
 	onNewSnapshot    func()
@@ -44,7 +44,7 @@ type Filters struct {
 	logsStores         *SyncMap[LogsSubID, []*types.Log]
 	pendingHeadsStores *SyncMap[HeadsSubID, []*types.Header]
 	pendingTxsStores   *SyncMap[PendingTxsSubID, [][]types.Transaction]
-	bobTxsStores       *SyncMap[BobTxsSubID, [][][]byte]
+	bobTxsStores       *SyncMap[BobTxsSubID, [][]string]
 	logger             log.Logger
 }
 
@@ -54,7 +54,7 @@ func New(ctx context.Context, ethBackend ApiBackend, txPool txpool.TxpoolClient,
 	ff := &Filters{
 		headsSubs:          NewSyncMap[HeadsSubID, Sub[*types.Header]](),
 		pendingTxsSubs:     NewSyncMap[PendingTxsSubID, Sub[[]types.Transaction]](),
-		bobTxsSubs:         NewSyncMap[BobTxsSubID, Sub[[][]byte]](),
+		bobTxsSubs:         NewSyncMap[BobTxsSubID, Sub[[]string]](),
 		pendingLogsSubs:    NewSyncMap[PendingLogsSubID, Sub[types.Logs]](),
 		pendingBlockSubs:   NewSyncMap[PendingBlockSubID, Sub[*types.Block]](),
 		logsSubs:           NewLogsFilterAggregator(),
@@ -62,7 +62,7 @@ func New(ctx context.Context, ethBackend ApiBackend, txPool txpool.TxpoolClient,
 		logsStores:         NewSyncMap[LogsSubID, []*types.Log](),
 		pendingHeadsStores: NewSyncMap[HeadsSubID, []*types.Header](),
 		pendingTxsStores:   NewSyncMap[PendingTxsSubID, [][]types.Transaction](),
-		bobTxsStores:       NewSyncMap[BobTxsSubID, [][][]byte](),
+		bobTxsStores:       NewSyncMap[BobTxsSubID, [][]string](),
 		logger:             logger,
 	}
 
@@ -371,9 +371,9 @@ func (ff *Filters) UnsubscribePendingTxs(id PendingTxsSubID) bool {
 	return true
 }
 
-func (ff *Filters) SubscribeBobTxs(size int) (<-chan [][]byte, BobTxsSubID) {
+func (ff *Filters) SubscribeBobTxs(size int) (<-chan []string, BobTxsSubID) {
 	id := BobTxsSubID(generateSubscriptionID())
-	sub := newChanSub[[][]byte](size)
+	sub := newChanSub[[]string](size)
 	ff.bobTxsSubs.Put(id, sub)
 	return sub.ch, id
 }
@@ -565,8 +565,8 @@ func (ff *Filters) OnNewTx(reply *txpool.OnAddReply) {
 	})
 }
 
-func (ff *Filters) OnNewBobTxs(txs [][]byte) {
-	ff.bobTxsSubs.Range(func(k BobTxsSubID, v Sub[[][]byte]) error {
+func (ff *Filters) OnNewBobTxs(txs []string) {
+	ff.bobTxsSubs.Range(func(k BobTxsSubID, v Sub[[]string]) error {
 		v.Send(txs)
 		return nil
 	})

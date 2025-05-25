@@ -101,13 +101,13 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 			}
 
 			if err = Retry(ctx, func() error {
-				transactions, err := s.getRawTransactions(ctx, auctionStartTimestamp)
+				transactions, rawTransactions, err := s.getRawTransactions(ctx, auctionStartTimestamp)
 				if err != nil {
 					fmt.Println("failed to get raw transactions, error: ", err.Error())
 					return err
 				}
 				s.slotTransactionsCh <- &SlotTransactions{transactions: transactions}
-				s.filter.OnNewBobTxs(transactions)
+				s.filter.OnNewBobTxs(rawTransactions)
 				return nil
 			}, 100*time.Millisecond); err != nil {
 				fmt.Printf("getRawTransactions error: %v", err)
@@ -128,7 +128,7 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 	}
 }
 
-func (s *SbbService) getRawTransactions(ctx context.Context, auctionStartTimestamp *uint64) ([][]byte, error) {
+func (s *SbbService) getRawTransactions(ctx context.Context, auctionStartTimestamp *uint64) ([][]byte, []string, error) {
 	reqCtx, reqCancel := context.WithTimeout(ctx, 2*time.Second)
 	defer reqCancel()
 
@@ -146,7 +146,7 @@ func (s *SbbService) getRawTransactions(ctx context.Context, auctionStartTimesta
 
 	res := &GetRawTransactionsResponse{}
 	if err := s.httpClient.Send(reqCtx, s.SbbUrl, body, res); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var encodedTxs [][]byte
@@ -164,7 +164,7 @@ func (s *SbbService) getRawTransactions(ctx context.Context, auctionStartTimesta
 
 	logger.ColorPrintln(logger.Green, "Transaction processing succeeded. tx count: "+strconv.Itoa(len(res.RawTransactions))+" slot number: "+strconv.FormatInt(s.fetchedTxsSlotNumber, 10))
 
-	return encodedTxs, nil
+	return encodedTxs, res.RawTransactions, nil
 }
 
 func Retry(ctx context.Context, fn func() error, retryInterval time.Duration) error {

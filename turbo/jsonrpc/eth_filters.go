@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 
 	"github.com/ledgerwatch/erigon-lib/common"
@@ -228,14 +229,25 @@ func (api *APIImpl) NewBobTransactions(ctx context.Context) (*rpc.Subscription, 
 		for {
 			select {
 			case txs, ok := <-txsCh:
-				for _, t := range txs {
-					if t != nil {
-						err := notifier.Notify(rpcSub.ID, t)
-						if err != nil {
-							log.Warn("[rpc] error while notifying subscription", "err", err)
-						}
-					}
+				//for _, t := range txs {
+				//	if t != nil {
+				//		err := notifier.Notify(rpcSub.ID, t)
+				//		if err != nil {
+				//			log.Warn("[rpc] error while notifying subscription", "err", err)
+				//		}
+				//	}
+				//}
+				message, err := json.Marshal(txs)
+				if err != nil {
+					log.Warn("[rpc] error while marshaling Bob transactions", "err", err)
+					return
 				}
+
+				err = notifier.Notify(rpcSub.ID, message)
+				if err != nil {
+					log.Warn("[rpc] error while notifying subscription", "err", err)
+				}
+
 				if !ok {
 					log.Warn("[rpc] new bob transactions channel was closed")
 					return
