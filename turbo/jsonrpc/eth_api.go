@@ -76,6 +76,7 @@ type EthAPI interface {
 	UninstallFilter(_ context.Context, index string) (bool, error)
 	GetFilterChanges(_ context.Context, index string) ([]any, error)
 	GetFilterLogs(_ context.Context, index string) ([]*types.Log, error)
+	NewBobTransactions(ctx context.Context) (*rpc.Subscription, error)
 
 	// Account related (see ./eth_accounts.go)
 	Accounts(ctx context.Context) ([]common.Address, error)
