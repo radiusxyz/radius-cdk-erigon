@@ -1376,7 +1376,7 @@ func (s *Ethereum) Init(stack *node.Node, config *ethconfig.Config, chainConfig 
 		return err
 	}
 
-	if config.Mode == "lighthouse" {
+	if s.sbbService != nil {
 		s.sbbService.SetFilter(ff)
 	}
 

@@ -222,8 +222,8 @@ func (api *APIImpl) NewBobTransactions(ctx context.Context) (*rpc.Subscription, 
 
 	go func() {
 		defer debug.LogPanic()
-		txsCh, id := api.filters.SubscribePendingTxs(512)
-		defer api.filters.UnsubscribePendingTxs(id)
+		txsCh, id := api.filters.SubscribeBobTxs(512)
+		defer api.filters.UnsubscribeBobTxs(id)
 
 		for {
 			select {
