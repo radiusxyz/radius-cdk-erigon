@@ -210,7 +210,7 @@ func (api *APIImpl) NewPendingTransactions(ctx context.Context, fullTx *bool) (*
 	return rpcSub, nil
 }
 
-func (api *APIImpl) NewBobTransactions(ctx context.Context) (*rpc.Subscription, error) {
+func (api *APIImpl) NewSlotTransactions(ctx context.Context) (*rpc.Subscription, error) {
 	if api.filters == nil {
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
 	}
@@ -223,12 +223,12 @@ func (api *APIImpl) NewBobTransactions(ctx context.Context) (*rpc.Subscription, 
 
 	go func() {
 		defer debug.LogPanic()
-		txsCh, id := api.filters.SubscribeBobTxs(512)
-		defer api.filters.UnsubscribeBobTxs(id)
+		slotTxsCh, id := api.filters.SubscribeSlotTxs(512)
+		defer api.filters.UnsubscribeSlotTxs(id)
 
 		for {
 			select {
-			case txs, ok := <-txsCh:
+			case slotTxs, ok := <-slotTxsCh:
 				//for _, t := range txs {
 				//	if t != nil {
 				//		err := notifier.Notify(rpcSub.ID, t)
@@ -237,7 +237,7 @@ func (api *APIImpl) NewBobTransactions(ctx context.Context) (*rpc.Subscription, 
 				//		}
 				//	}
 				//}
-				message, err := json.Marshal(txs)
+				message, err := json.Marshal(slotTxs)
 				if err != nil {
 					log.Warn("[rpc] error while marshaling Bob transactions", "err", err)
 					return

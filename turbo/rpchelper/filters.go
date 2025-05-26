@@ -35,7 +35,7 @@ type Filters struct {
 	pendingLogsSubs  *SyncMap[PendingLogsSubID, Sub[types.Logs]]
 	pendingBlockSubs *SyncMap[PendingBlockSubID, Sub[*types.Block]]
 	pendingTxsSubs   *SyncMap[PendingTxsSubID, Sub[[]types.Transaction]]
-	bobTxsSubs       *SyncMap[BobTxsSubID, Sub[[]string]]
+	slotTxsSubs      *SyncMap[SlotTxsSubID, Sub[*types.SlotTransactions]]
 	logsSubs         *LogsFilterAggregator
 	logsRequestor    atomic.Value
 	onNewSnapshot    func()
@@ -44,7 +44,7 @@ type Filters struct {
 	logsStores         *SyncMap[LogsSubID, []*types.Log]
 	pendingHeadsStores *SyncMap[HeadsSubID, []*types.Header]
 	pendingTxsStores   *SyncMap[PendingTxsSubID, [][]types.Transaction]
-	bobTxsStores       *SyncMap[BobTxsSubID, [][]string]
+	slotTxsStores      *SyncMap[SlotTxsSubID, []*types.SlotTransactions]
 	logger             log.Logger
 }
 
@@ -54,7 +54,7 @@ func New(ctx context.Context, ethBackend ApiBackend, txPool txpool.TxpoolClient,
 	ff := &Filters{
 		headsSubs:          NewSyncMap[HeadsSubID, Sub[*types.Header]](),
 		pendingTxsSubs:     NewSyncMap[PendingTxsSubID, Sub[[]types.Transaction]](),
-		bobTxsSubs:         NewSyncMap[BobTxsSubID, Sub[[]string]](),
+		slotTxsSubs:        NewSyncMap[SlotTxsSubID, Sub[*types.SlotTransactions]](),
 		pendingLogsSubs:    NewSyncMap[PendingLogsSubID, Sub[types.Logs]](),
 		pendingBlockSubs:   NewSyncMap[PendingBlockSubID, Sub[*types.Block]](),
 		logsSubs:           NewLogsFilterAggregator(),
@@ -62,7 +62,7 @@ func New(ctx context.Context, ethBackend ApiBackend, txPool txpool.TxpoolClient,
 		logsStores:         NewSyncMap[LogsSubID, []*types.Log](),
 		pendingHeadsStores: NewSyncMap[HeadsSubID, []*types.Header](),
 		pendingTxsStores:   NewSyncMap[PendingTxsSubID, [][]types.Transaction](),
-		bobTxsStores:       NewSyncMap[BobTxsSubID, [][]string](),
+		slotTxsStores:      NewSyncMap[SlotTxsSubID, []*types.SlotTransactions](),
 		logger:             logger,
 	}
 
@@ -371,23 +371,23 @@ func (ff *Filters) UnsubscribePendingTxs(id PendingTxsSubID) bool {
 	return true
 }
 
-func (ff *Filters) SubscribeBobTxs(size int) (<-chan []string, BobTxsSubID) {
-	id := BobTxsSubID(generateSubscriptionID())
-	sub := newChanSub[[]string](size)
-	ff.bobTxsSubs.Put(id, sub)
+func (ff *Filters) SubscribeSlotTxs(size int) (<-chan *types.SlotTransactions, SlotTxsSubID) {
+	id := SlotTxsSubID(generateSubscriptionID())
+	sub := newChanSub[*types.SlotTransactions](size)
+	ff.slotTxsSubs.Put(id, sub)
 	return sub.ch, id
 }
 
-func (ff *Filters) UnsubscribeBobTxs(id BobTxsSubID) bool {
-	ch, ok := ff.bobTxsSubs.Get(id)
+func (ff *Filters) UnsubscribeSlotTxs(id SlotTxsSubID) bool {
+	ch, ok := ff.slotTxsSubs.Get(id)
 	if !ok {
 		return false
 	}
 	ch.Close()
-	if _, ok = ff.bobTxsSubs.Delete(id); !ok {
+	if _, ok = ff.slotTxsSubs.Delete(id); !ok {
 		return false
 	}
-	ff.bobTxsStores.Delete(id)
+	ff.slotTxsStores.Delete(id)
 	return true
 }
 
@@ -565,9 +565,9 @@ func (ff *Filters) OnNewTx(reply *txpool.OnAddReply) {
 	})
 }
 
-func (ff *Filters) OnNewBobTxs(txs []string) {
-	ff.bobTxsSubs.Range(func(k BobTxsSubID, v Sub[[]string]) error {
-		v.Send(txs)
+func (ff *Filters) OnNewSlotTxs(slotTransactions *types.SlotTransactions) {
+	ff.slotTxsSubs.Range(func(k SlotTxsSubID, v Sub[*types.SlotTransactions]) error {
+		v.Send(slotTransactions)
 		return nil
 	})
 }

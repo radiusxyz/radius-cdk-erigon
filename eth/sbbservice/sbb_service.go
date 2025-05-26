@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/eth/lighthousewsclient"
 	"github.com/ledgerwatch/erigon/httpclient"
@@ -107,7 +108,7 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 					return err
 				}
 				s.slotTransactionsCh <- &SlotTransactions{transactions: transactions}
-				s.filter.OnNewBobTxs(rawTransactions)
+				s.filter.OnNewSlotTxs(&types.SlotTransactions{SlotNumber: s.fetchedTxsSlotNumber, RawTransactions: rawTransactions})
 				return nil
 			}, 100*time.Millisecond); err != nil {
 				fmt.Printf("getRawTransactions error: %v", err)
