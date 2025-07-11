@@ -153,11 +153,9 @@ func (s *SbbService) getRawTransactions(ctx context.Context, auctionStartTimesta
 	fetchingTxsSlotNumber := s.fetchedTxsSlotNumber + 1
 
 	params := GetRawTransactionsParams{
-		RollupId:                      s.RollupId,
-		Mode:                          s.Mode,
-		SlotNumber:                    fetchingTxsSlotNumber,
-		NextSlotAuctionCreated:        s.auctionCreatedSlotNumber == fetchingTxsSlotNumber+1,
-		NextSlotAuctionStartTimestamp: auctionStartTimestamp,
+		RollupId:   s.RollupId,
+		Mode:       s.Mode,
+		SlotNumber: fetchingTxsSlotNumber,
 	}
 
 	body := newJsonRpcRequest(GetRawTransactionList, params)
