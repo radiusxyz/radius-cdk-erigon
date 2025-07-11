@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gorilla/websocket"
+	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/crypto"
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/eth/lighthousewsclient/requests"
@@ -23,7 +24,7 @@ type LighthouseWsClient struct {
 	handler    *LighthouseMessageHandler
 }
 
-func NewLighthouseWsClient(config *ethconfig.Config) (*LighthouseWsClient, error) {
+func NewLighthouseWsClient(config *ethconfig.Config, lighthouseTxCh chan *common.LighthouseTransactions) (*LighthouseWsClient, error) {
 	conn, _, err := websocket.DefaultDialer.Dial(config.LighthouseUrl, nil)
 	if err != nil {
 		return nil, err
@@ -34,7 +35,7 @@ func NewLighthouseWsClient(config *ethconfig.Config) (*LighthouseWsClient, error
 		conn:       conn,
 		leaveCh:    make(chan struct{}),
 		envelopeCh: make(chan []byte),
-		handler:    NewLighthouseMessageHandler(conn),
+		handler:    NewLighthouseMessageHandler(conn, lighthouseTxCh),
 	}, nil
 }
 
@@ -71,7 +72,6 @@ func (l *LighthouseWsClient) CreateAuction(slotNumber int64, slotTime uint64) (*
 		SlotNumber:            slotNumber,
 		SlotTime:              slotTime,
 		AuctionStartTimestamp: auctionStartTimestamp,
-		LeaderTxOrdererUrl:    l.SbbUrl,
 	}
 	requestType := requests.CreateAuction
 	if err := l.handler.SendMessage(requestType, createAuctionRequest); err != nil {

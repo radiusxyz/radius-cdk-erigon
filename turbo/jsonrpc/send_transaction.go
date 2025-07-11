@@ -18,6 +18,11 @@ import (
 	"github.com/ledgerwatch/erigon/zk/utils"
 )
 
+//func (api *APIImpl) SendLighthouseTransactions(ctx context.Context, lighthouseTxs *common2.LighthouseTransactions) (bool, error) {
+//	api.LighthouseTxsCh <- lighthouseTxs
+//	return true, nil
+//}
+
 // SendRawTransaction implements eth_sendRawTransaction. Creates new message call transaction or a contract creation for previously-signed transactions.
 func (api *APIImpl) SendRawTransaction(ctx context.Context, encodedTx hexutility.Bytes) (common.Hash, error) {
 	t := utils.StartTimer("rpc", "sendrawtransaction")

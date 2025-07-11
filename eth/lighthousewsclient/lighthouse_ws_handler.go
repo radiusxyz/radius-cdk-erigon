@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/eth/lighthousewsclient/events"
 	"github.com/ledgerwatch/erigon/eth/lighthousewsclient/requests"
 	"github.com/ledgerwatch/erigon/eth/lighthousewsclient/responses"
@@ -17,12 +18,14 @@ type BaseMessage struct {
 }
 
 type LighthouseMessageHandler struct {
-	serverConn *websocket.Conn
+	serverConn      *websocket.Conn
+	lighthouseTxsCh chan *common.LighthouseTransactions
 }
 
-func NewLighthouseMessageHandler(serverConn *websocket.Conn) *LighthouseMessageHandler {
+func NewLighthouseMessageHandler(serverConn *websocket.Conn, lighthouseTxsCh chan *common.LighthouseTransactions) *LighthouseMessageHandler {
 	return &LighthouseMessageHandler{
-		serverConn: serverConn,
+		serverConn:      serverConn,
+		lighthouseTxsCh: lighthouseTxsCh,
 	}
 }
 
@@ -33,6 +36,15 @@ func (l *LighthouseMessageHandler) handleRollupVerifiedResponse(res *responses.R
 
 func (l *LighthouseMessageHandler) handleAuctionCreatedResponse(res *responses.AuctionCreatedResponse) error {
 	logger.ColorPrintln(logger.Cyan, "Successfully auction Created. auctionId: "+*res.AuctionId)
+	return nil
+}
+
+func (l *LighthouseMessageHandler) handleAuctionClosedEvent(event *events.AuctionClosedEvent) error {
+	logger.ColorPrintln(logger.Cyan, "Successfully auction closed. auctionId: "+*event.AuctionId)
+	l.lighthouseTxsCh <- &common.LighthouseTransactions{
+		SlotNumber:      *event.SlotNumber,
+		RawTransactions: event.RawTransactions,
+	}
 	return nil
 }
 
@@ -89,23 +101,16 @@ func (l *LighthouseMessageHandler) handleResponse(res *responses.ResponseMessage
 }
 
 func (l *LighthouseMessageHandler) handleEvent(event *events.EventMessage) error {
-	//switch event.EventType {
-	//case messages.RoundStarted:
-	//	var payload *messages.RoundStartedMessage
-	//	if err := json.Unmarshal(event.Payload, payload); err != nil {
-	//		return fmt.Errorf("failed to decode RoundStartedMessage: %w", err)
-	//	}
-	//	return l.handleRoundStartedMessage(payload)
-	//case messages.Tob:
-	//	var payload *messages.TobMessage
-	//	if err := json.Unmarshal(event.Payload, payload); err != nil {
-	//		return fmt.Errorf("failed to decode BidSubmittedMessage: %w", err)
-	//	}
-	//	return l.handleTobMessage(payload)
-	//default:
-	//	return fmt.Errorf("unknown event type")
-	//}
-	return nil
+	switch event.EventType {
+	case events.AuctionClosed:
+		var payload *events.AuctionClosedEvent
+		if err := json.Unmarshal(event.Payload, payload); err != nil {
+			return fmt.Errorf("failed to decode AuctionClosedEvent: %w", err)
+		}
+		return l.handleAuctionClosedEvent(payload)
+	default:
+		return fmt.Errorf("unknown event type")
+	}
 }
 
 func (l *LighthouseMessageHandler) SendMessage(requestType requests.RequestType, params requests.RequestParams) error {

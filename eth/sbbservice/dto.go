@@ -1,11 +1,9 @@
 package sbbservice
 
 type GetRawTransactionsParams struct {
-	RollupId                      string  `json:"rollupId"`
-	Mode                          string  `json:"mode"`
-	SlotNumber                    int64   `json:"rollupSlotNumber"`
-	NextSlotAuctionCreated        bool    `json:"nextSlotAuctionCreated"`
-	NextSlotAuctionStartTimestamp *uint64 `json:"nextSlotAuctionStartTimestamp"`
+	RollupId   string `json:"rollupId"`
+	Mode       string `json:"mode"`
+	SlotNumber int64  `json:"slotNumber"`
 }
 
 type GetRawTransactionsResponse struct {

@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	common2 "github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/eth/lighthousewsclient"
 	"github.com/ledgerwatch/erigon/eth/sbbservice"
 	"io/fs"
@@ -244,6 +245,7 @@ type Ethereum struct {
 
 	sbbService         *sbbservice.SbbService
 	lighthouseWsClient *lighthousewsclient.LighthouseWsClient
+	lighthouseTxsCh    chan *common2.LighthouseTransactions
 }
 
 func splitAddrIntoHostAndPort(addr string) (host string, port int, err error) {
@@ -320,6 +322,7 @@ func New(ctx context.Context, stack *node.Node, config *ethconfig.Config, logger
 		stopNode: func() error {
 			return stack.Close()
 		},
+		lighthouseTxsCh: make(chan *common2.LighthouseTransactions),
 	}
 
 	var chainConfig *chain.Config
@@ -1188,17 +1191,17 @@ func New(ctx context.Context, stack *node.Node, config *ethconfig.Config, logger
 			)
 
 			if config.Mode == "lighthouse" {
-				backend.lighthouseWsClient, err = lighthousewsclient.NewLighthouseWsClient(config)
+				backend.lighthouseWsClient, err = lighthousewsclient.NewLighthouseWsClient(config, backend.lighthouseTxsCh)
 				if err != nil {
 					return nil, err
 				}
 
-				backend.sbbService, err = sbbservice.NewSbbService(config, backend, backend.lighthouseWsClient)
+				backend.sbbService, err = sbbservice.NewSbbService(config, backend, backend.lighthouseWsClient, backend.lighthouseTxsCh)
 				if err != nil {
 					return nil, err
 				}
 			} else if config.Mode == "sbb" {
-				backend.sbbService, err = sbbservice.NewSbbService(config, backend, backend.lighthouseWsClient)
+				backend.sbbService, err = sbbservice.NewSbbService(config, backend, backend.lighthouseWsClient, nil)
 				if err != nil {
 					return nil, err
 				}

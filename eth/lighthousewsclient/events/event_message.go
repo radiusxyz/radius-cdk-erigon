@@ -6,6 +6,10 @@ import (
 
 type EventType string
 
+const (
+	AuctionClosed EventType = "AuctionClosed"
+)
+
 type EventMessage struct {
 	EventType EventType       `json:"eventType"`
 	Payload   json.RawMessage `json:"payload"`

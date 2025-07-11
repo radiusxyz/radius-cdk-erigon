@@ -176,3 +176,8 @@ func (keys StorageKeys) Less(i, j int) bool {
 func (keys StorageKeys) Swap(i, j int) {
 	keys[i], keys[j] = keys[j], keys[i]
 }
+
+type LighthouseTransactions struct {
+	SlotNumber      int64
+	RawTransactions [][]byte
+}
