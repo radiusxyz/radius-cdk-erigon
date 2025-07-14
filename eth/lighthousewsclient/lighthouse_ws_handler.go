@@ -103,7 +103,7 @@ func (l *LighthouseMessageHandler) handleResponse(res *responses.ResponseMessage
 func (l *LighthouseMessageHandler) handleEvent(event *events.EventMessage) error {
 	switch event.EventType {
 	case events.AuctionClosed:
-		var payload *events.AuctionClosedEvent
+		payload := new(events.AuctionClosedEvent)
 		if err := json.Unmarshal(event.Payload, payload); err != nil {
 			return fmt.Errorf("failed to decode AuctionClosedEvent: %w", err)
 		}
