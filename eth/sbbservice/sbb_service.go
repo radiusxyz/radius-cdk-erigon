@@ -109,7 +109,7 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 			if s.lighthouseWsClient != nil {
 				select {
 				case lighthouseTxs := <-s.lighthouseTxsCh:
-					if lighthouseTxs.SlotNumber != s.fetchedTxsSlotNumber+1 {
+					if s.fetchedTxsSlotNumber > -1 && lighthouseTxs.SlotNumber != s.fetchedTxsSlotNumber+1 {
 						panic("error: incorrect slotNumber")
 					}
 					txs = append(txs, lighthouseTxs.RawTransactions...)
