@@ -84,10 +84,6 @@ func (l *LighthouseWsClient) CreateAuction(slotNumber int64, slotTime uint64) (*
 }
 
 func (l *LighthouseWsClient) ReadMessage() {
-	defer func() {
-		l.leaveCh <- struct{}{}
-	}()
-
 	for {
 		_, message, err := l.conn.ReadMessage()
 		if err != nil {
@@ -108,11 +104,26 @@ func (l *LighthouseWsClient) ManageCh() {
 		case <-l.leaveCh:
 			_ = l.conn.Close()
 			logger.Println("Connection to the server has been lost")
+			l.Reconnect()
+
 		case envelope := <-l.envelopeCh:
 			if err := l.handler.HandleEnvelope(envelope); err != nil {
 				logger.ColorPrintf(logger.Red, "Exception filter: %s", err.Error())
 			}
 		}
+	}
+}
+
+func (l *LighthouseWsClient) Reconnect() {
+	for {
+		time.Sleep(time.Second * 5)
+		conn, _, err := websocket.DefaultDialer.Dial(l.Config.LighthouseUrl, nil)
+		if err != nil {
+			logger.ColorPrintf(logger.Red, "Dial error: %s", err.Error())
+			continue
+		}
+		l.conn = conn
+		go l.ReadMessage()
 	}
 }
 

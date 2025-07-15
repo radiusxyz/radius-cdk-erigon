@@ -107,7 +107,6 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 			txs := make([][]byte, 0)
 
 			if s.lighthouseWsClient != nil && s.fetchedTxsSlotNumber > -1 {
-				fmt.Println("youngmin : ", s.fetchedTxsSlotNumber)
 				select {
 				case lighthouseTxs := <-s.lighthouseTxsCh:
 					if lighthouseTxs.SlotNumber != s.fetchedTxsSlotNumber+1 {
@@ -117,7 +116,6 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 				}
 			}
 
-			fmt.Println("bbbbb")
 			if err = Retry(ctx, func() error {
 				rawTransactions, err := s.getRawTransactions(ctx, auctionStartTimestamp)
 				if err != nil {
