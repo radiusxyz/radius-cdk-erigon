@@ -2,7 +2,6 @@ package lighthousewsclient
 
 import (
 	"crypto/ecdsa"
-	"errors"
 	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/ledgerwatch/erigon/common"
@@ -10,7 +9,6 @@ import (
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/eth/lighthousewsclient/requests"
 	"github.com/ledgerwatch/erigon/logger"
-	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -88,10 +86,7 @@ func (l *LighthouseWsClient) ReadMessage() {
 		_, message, err := l.conn.ReadMessage()
 		if err != nil {
 			logger.Println("Read error:", err)
-			if errors.Is(err, io.EOF) {
-				fmt.Println("youngmin - eof")
-				l.leaveCh <- struct{}{}
-			}
+			l.leaveCh <- struct{}{}
 			break
 		}
 		l.envelopeCh <- message
