@@ -124,6 +124,7 @@ func (l *LighthouseWsClient) Reconnect() {
 		}
 		l.conn = conn
 		go l.ReadMessage()
+		break
 	}
 }
 
