@@ -29,6 +29,10 @@ func NewLighthouseMessageHandler(serverConn *websocket.Conn, lighthouseTxsCh cha
 	}
 }
 
+func (l *LighthouseMessageHandler) ResetConn(conn *websocket.Conn) {
+	l.serverConn = conn
+}
+
 func (l *LighthouseMessageHandler) handleRollupVerifiedResponse(res *responses.RollupVerifiedResponse) error {
 	logger.ColorPrintln(logger.BgCyan, "Successfully rollup verified")
 	return nil

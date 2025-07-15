@@ -109,6 +109,11 @@ func (l *LighthouseWsClient) ManageCh() {
 	}
 }
 
+func (l *LighthouseWsClient) resetConn(conn *websocket.Conn) {
+	l.conn = conn
+	l.handler.ResetConn(conn)
+}
+
 func (l *LighthouseWsClient) Reconnect() {
 	for {
 		time.Sleep(time.Second * 5)
@@ -117,7 +122,7 @@ func (l *LighthouseWsClient) Reconnect() {
 			logger.ColorPrintf(logger.Red, "Dial error: %s", err.Error())
 			continue
 		}
-		l.conn = conn
+		l.resetConn(conn)
 		go l.ReadMessage()
 		break
 	}
