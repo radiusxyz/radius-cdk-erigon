@@ -2,6 +2,7 @@ package lighthousewsclient
 
 import (
 	"crypto/ecdsa"
+	"encoding/base64"
 	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/ledgerwatch/erigon/common"
@@ -9,6 +10,7 @@ import (
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/eth/lighthousewsclient/requests"
 	"github.com/ledgerwatch/erigon/logger"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -23,7 +25,19 @@ type LighthouseWsClient struct {
 }
 
 func NewLighthouseWsClient(config *ethconfig.Config, lighthouseTxCh chan *common.LighthouseTransactions) (*LighthouseWsClient, error) {
-	conn, _, err := websocket.DefaultDialer.Dial(config.LighthouseUrl, nil)
+	timestamp := uint64(time.Now().Unix())
+	signature, err := GetSignature(config.RollupId, timestamp, config.SequencerPrivateKey)
+	if err != nil {
+		panic(err)
+	}
+
+	headers := http.Header{}
+	headers.Set("ClientType", "Rollup")
+	headers.Set("RollupId", config.RollupId)
+	headers.Set("Signature", base64.StdEncoding.EncodeToString(signature))
+	headers.Set("Timestamp", strconv.FormatUint(timestamp, 10))
+
+	conn, _, err := websocket.DefaultDialer.Dial(config.LighthouseUrl, headers)
 	if err != nil {
 		return nil, err
 	}
