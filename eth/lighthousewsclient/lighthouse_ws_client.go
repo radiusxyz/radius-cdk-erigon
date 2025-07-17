@@ -131,6 +131,18 @@ func (l *LighthouseWsClient) resetConn(conn *websocket.Conn) {
 func (l *LighthouseWsClient) Reconnect() {
 	for {
 		time.Sleep(time.Second * 5)
+		timestamp := uint64(time.Now().Unix())
+		signature, err := GetSignature(l.RollupId, timestamp, l.SequencerPrivateKey)
+		if err != nil {
+			panic(err)
+		}
+
+		headers := http.Header{}
+		headers.Set("Client-Type", "Rollup")
+		headers.Set("Rollup-Id", l.RollupId)
+		headers.Set("Signature", base64.StdEncoding.EncodeToString(signature))
+		headers.Set("Timestamp", strconv.FormatUint(timestamp, 10))
+
 		conn, _, err := websocket.DefaultDialer.Dial(l.Config.LighthouseUrl, nil)
 		if err != nil {
 			logger.ColorPrintf(logger.Red, "Dial error: %s", err.Error())
