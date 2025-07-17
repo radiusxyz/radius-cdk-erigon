@@ -143,7 +143,7 @@ func (l *LighthouseWsClient) Reconnect() {
 		headers.Set("Signature", base64.StdEncoding.EncodeToString(signature))
 		headers.Set("Timestamp", strconv.FormatUint(timestamp, 10))
 
-		conn, _, err := websocket.DefaultDialer.Dial(l.Config.LighthouseUrl, nil)
+		conn, _, err := websocket.DefaultDialer.Dial(l.Config.LighthouseUrl, headers)
 		if err != nil {
 			logger.ColorPrintf(logger.Red, "Dial error: %s", err.Error())
 			continue
