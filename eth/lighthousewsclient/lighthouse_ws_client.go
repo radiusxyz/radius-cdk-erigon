@@ -32,8 +32,8 @@ func NewLighthouseWsClient(config *ethconfig.Config, lighthouseTxCh chan *common
 	}
 
 	headers := http.Header{}
-	headers.Set("ClientType", "Rollup")
-	headers.Set("RollupId", config.RollupId)
+	headers.Set("Client-Type", "Rollup")
+	headers.Set("Rollup-Id", config.RollupId)
 	headers.Set("Signature", base64.StdEncoding.EncodeToString(signature))
 	headers.Set("Timestamp", strconv.FormatUint(timestamp, 10))
 
@@ -58,23 +58,23 @@ func (l *LighthouseWsClient) Start() {
 
 	go l.ReadMessage()
 
-	timestamp := uint64(time.Now().Unix())
-	signature, err := GetSignature(l.RollupId, timestamp, l.SequencerPrivateKey)
-	if err != nil {
-		panic(err)
-	}
+	//timestamp := uint64(time.Now().Unix())
+	//signature, err := GetSignature(l.RollupId, timestamp, l.SequencerPrivateKey)
+	//if err != nil {
+	//	panic(err)
+	//}
 
-	verifyRollupRequest := &requests.VerifyRollupRequest{
-		RollupId:  l.RollupId,
-		Timestamp: timestamp,
-		Signature: signature,
-	}
-
-	if err = l.handler.SendMessage(requests.VerifyRollup, verifyRollupRequest); err != nil {
-		logger.Println("Write error:", err)
-	}
-
-	logger.Printf("rollup(%s) verification message sent", l.RollupId)
+	//verifyRollupRequest := &requests.VerifyRollupRequest{
+	//	RollupId:  l.RollupId,
+	//	Timestamp: timestamp,
+	//	Signature: signature,
+	//}
+	//
+	//if err = l.handler.SendMessage(requests.VerifyRollup, verifyRollupRequest); err != nil {
+	//	logger.Println("Write error:", err)
+	//}
+	//
+	//logger.Printf("rollup(%s) verification message sent", l.RollupId)
 }
 
 func (l *LighthouseWsClient) CreateAuction(slotNumber int64, slotTime uint64) (*uint64, error) {
