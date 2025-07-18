@@ -94,13 +94,10 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 
 			var auctionStartTimestamp *uint64 = nil
 			var err error
-			if s.lighthouseWsClient != nil && s.auctionCreatedSlotNumber <= s.fetchedTxsSlotNumber+1 {
-				creatingAuctionSlotNumber := s.fetchedTxsSlotNumber + 2
-				auctionStartTimestamp, err = s.lighthouseWsClient.CreateAuction(creatingAuctionSlotNumber, s.SlotTime)
+			if s.lighthouseWsClient != nil {
+				auctionStartTimestamp, err = s.lighthouseWsClient.CreateAuction(s.fetchedTxsSlotNumber+2, s.SlotTime)
 				if err != nil {
 					fmt.Println("failed to create auction, error: ", err.Error())
-				} else {
-					s.auctionCreatedSlotNumber = creatingAuctionSlotNumber
 				}
 			}
 
@@ -113,7 +110,7 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 					if lighthouseTxs.SlotNumber > s.fetchedTxsSlotNumber+1 {
 						s.lighthouseTxsCh <- lighthouseTxs
 					} else if lighthouseTxs.SlotNumber < s.fetchedTxsSlotNumber+1 {
-						panic("error: incorrect slotNumber: " + "lhSlot: " + strconv.FormatInt(lighthouseTxs.SlotNumber, 10) + " fet: " + strconv.FormatInt(s.fetchedTxsSlotNumber, 10))
+						logger.ColorPrintf(logger.Yellow, "Warning: LH slotNumber(%d) is too low. current slotNumber(%d)", lighthouseTxs.SlotNumber, s.fetchedTxsSlotNumber+1)
 					} else {
 						txs = append(txs, lighthouseTxs.RawTransactions...)
 					}
