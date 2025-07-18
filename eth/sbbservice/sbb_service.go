@@ -106,7 +106,7 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 				break
 			}
 
-			if s.lighthouseWsClient != nil && s.fetchedTxsSlotNumber > -1 {
+			if s.lighthouseWsClient != nil && s.fetchedTxsSlotNumber > 0 {
 				timeout := time.After(5 * time.Second)
 				select {
 				case lighthouseTxs := <-s.lighthouseTxsCh:
