@@ -77,7 +77,7 @@ func (l *LighthouseWsClient) Start() {
 	//logger.Printf("rollup(%s) verification message sent", l.RollupId)
 }
 
-func (l *LighthouseWsClient) CreateAuction(slotNumber int64, slotTime uint64) (*uint64, error) {
+func (l *LighthouseWsClient) CreateAuction(slotNumber int64, slotTime uint64) error {
 	auctionStartTimestamp := uint64(time.Now().Unix())
 	createAuctionRequest := &requests.CreateAuctionRequest{
 		RollupId:              l.RollupId,
@@ -87,12 +87,12 @@ func (l *LighthouseWsClient) CreateAuction(slotNumber int64, slotTime uint64) (*
 	}
 	requestType := requests.CreateAuction
 	if err := l.handler.SendMessage(requestType, createAuctionRequest); err != nil {
-		return nil, err
+		return err
 	}
 
 	logger.ColorPrintln(logger.BrightCyan, "Sent auction creation message. slotNumber: "+strconv.FormatInt(slotNumber, 10))
 
-	return &auctionStartTimestamp, nil
+	return nil
 }
 
 func (l *LighthouseWsClient) ReadMessage() {

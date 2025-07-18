@@ -35,28 +35,26 @@ type BlockchainService interface {
 
 type SbbService struct {
 	*ethconfig.Config
-	lighthouseWsClient       *lighthousewsclient.LighthouseWsClient
-	blockchain               BlockchainService
-	httpClient               *httpclient.HttpClient
-	auctionCreatedSlotNumber int64
-	fetchedTxsSlotNumber     int64
-	slotTransactionsCh       chan *SlotTransactions
-	filter                   *rpchelper.Filters
-	lighthouseTxsCh          chan *common.LighthouseTransactions
+	lighthouseWsClient   *lighthousewsclient.LighthouseWsClient
+	blockchain           BlockchainService
+	httpClient           *httpclient.HttpClient
+	fetchedTxsSlotNumber int64
+	slotTransactionsCh   chan *SlotTransactions
+	filter               *rpchelper.Filters
+	lighthouseTxsCh      chan *common.LighthouseTransactions
 }
 
 func NewSbbService(config *ethconfig.Config, blockchainService BlockchainService, LighthouseWsClient *lighthousewsclient.LighthouseWsClient, lighthouseTxsCh chan *common.LighthouseTransactions) (*SbbService, error) {
 	httpClient := httpclient.New()
 
 	return &SbbService{
-		Config:                   config,
-		lighthouseWsClient:       LighthouseWsClient,
-		blockchain:               blockchainService,
-		httpClient:               httpClient,
-		auctionCreatedSlotNumber: -1,
-		fetchedTxsSlotNumber:     -1,
-		slotTransactionsCh:       make(chan *SlotTransactions, config.MaxSbbFinalizationCapacity),
-		lighthouseTxsCh:          lighthouseTxsCh,
+		Config:               config,
+		lighthouseWsClient:   LighthouseWsClient,
+		blockchain:           blockchainService,
+		httpClient:           httpClient,
+		fetchedTxsSlotNumber: -1,
+		slotTransactionsCh:   make(chan *SlotTransactions, config.MaxSbbFinalizationCapacity),
+		lighthouseTxsCh:      lighthouseTxsCh,
 	}, nil
 }
 
@@ -92,27 +90,32 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 		case <-timer.C:
 			startTime := time.Now().UnixMilli()
 
-			var auctionStartTimestamp *uint64 = nil
-			var err error
-			if s.lighthouseWsClient != nil {
-				auctionStartTimestamp, err = s.lighthouseWsClient.CreateAuction(s.fetchedTxsSlotNumber+2, s.SlotTime)
-				if err != nil {
-					fmt.Println("failed to create auction, error: ", err.Error())
-				}
-			}
-
 			txs := make([][]byte, 0)
+
+			if err := Retry(ctx, func() error {
+				rawTransactions, err := s.getRawTransactions(ctx)
+				if err != nil {
+					fmt.Println("failed to get raw transactions, error: ", err.Error())
+					return err
+				}
+				txs = append(txs, rawTransactions...)
+				return nil
+			}, 100*time.Millisecond); err != nil {
+				fmt.Printf("getRawTransactions error: %v", err)
+				timer.Reset(100 * time.Millisecond)
+				break
+			}
 
 			if s.lighthouseWsClient != nil && s.fetchedTxsSlotNumber > -1 {
 				timeout := time.After(5 * time.Second)
 				select {
 				case lighthouseTxs := <-s.lighthouseTxsCh:
-					if lighthouseTxs.SlotNumber > s.fetchedTxsSlotNumber+1 {
-						s.lighthouseTxsCh <- lighthouseTxs
-					} else if lighthouseTxs.SlotNumber < s.fetchedTxsSlotNumber+1 {
-						logger.ColorPrintf(logger.Yellow, "Warning: LH slotNumber(%d) is too low. current slotNumber(%d)", lighthouseTxs.SlotNumber, s.fetchedTxsSlotNumber+1)
+					if lighthouseTxs.SlotNumber > s.fetchedTxsSlotNumber {
+						panic("invalid LH slotNumber: lh: " + strconv.FormatInt(lighthouseTxs.SlotNumber, 10) + " curSlot: " + strconv.FormatInt(s.fetchedTxsSlotNumber, 10))
+					} else if lighthouseTxs.SlotNumber < s.fetchedTxsSlotNumber {
+						logger.ColorPrintf(logger.Yellow, "Warning: Discard LighthouseTx due to LH slotNumber(%d) is too low. current slotNumber(%d)", lighthouseTxs.SlotNumber, s.fetchedTxsSlotNumber+1)
 					} else {
-						txs = append(txs, lighthouseTxs.RawTransactions...)
+						txs = append(lighthouseTxs.RawTransactions, txs...)
 					}
 
 				case <-timeout:
@@ -120,21 +123,14 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 				}
 			}
 
-			if err = Retry(ctx, func() error {
-				rawTransactions, err := s.getRawTransactions(ctx, auctionStartTimestamp)
-				if err != nil {
-					fmt.Println("failed to get raw transactions, error: ", err.Error())
-					return err
-				}
+			s.slotTransactionsCh <- &SlotTransactions{transactions: txs}
+			s.filter.OnNewSlotTxs(&types.SlotTransactions{SlotNumber: s.fetchedTxsSlotNumber, RawTransactions: txs})
 
-				txs = append(txs, rawTransactions...)
-				s.slotTransactionsCh <- &SlotTransactions{transactions: txs}
-				s.filter.OnNewSlotTxs(&types.SlotTransactions{SlotNumber: s.fetchedTxsSlotNumber, RawTransactions: txs})
-				return nil
-			}, 100*time.Millisecond); err != nil {
-				fmt.Printf("getRawTransactions error: %v", err)
-				timer.Reset(100 * time.Millisecond)
-				break
+			if s.lighthouseWsClient != nil {
+				err := s.lighthouseWsClient.CreateAuction(s.fetchedTxsSlotNumber+1, s.SlotTime)
+				if err != nil {
+					fmt.Println("failed to create auction, error: ", err.Error())
+				}
 			}
 
 			endTime := time.Now().UnixMilli()
@@ -150,16 +146,14 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 	}
 }
 
-func (s *SbbService) getRawTransactions(ctx context.Context, auctionStartTimestamp *uint64) ([][]byte, error) {
+func (s *SbbService) getRawTransactions(ctx context.Context) ([][]byte, error) {
 	reqCtx, reqCancel := context.WithTimeout(ctx, 2*time.Second)
 	defer reqCancel()
-
-	fetchingTxsSlotNumber := s.fetchedTxsSlotNumber + 1
 
 	params := GetRawTransactionsParams{
 		RollupId:   s.RollupId,
 		Mode:       s.Mode,
-		SlotNumber: fetchingTxsSlotNumber,
+		SlotNumber: s.fetchedTxsSlotNumber + 1,
 	}
 
 	body := newJsonRpcRequest(GetRawTransactionList, params)
@@ -180,7 +174,7 @@ func (s *SbbService) getRawTransactions(ctx context.Context, auctionStartTimesta
 		encodedTxs = append(encodedTxs, binary)
 	}
 
-	s.fetchedTxsSlotNumber = fetchingTxsSlotNumber
+	s.fetchedTxsSlotNumber += 1
 
 	logger.ColorPrintln(logger.Green, "Transaction processing succeeded. tx count: "+strconv.Itoa(len(res.RawTransactions))+" slot number: "+strconv.FormatInt(s.fetchedTxsSlotNumber, 10))
 
