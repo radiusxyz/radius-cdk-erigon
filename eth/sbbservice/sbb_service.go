@@ -110,10 +110,13 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 				timeout := time.After(5 * time.Second)
 				select {
 				case lighthouseTxs := <-s.lighthouseTxsCh:
-					if lighthouseTxs.SlotNumber != s.fetchedTxsSlotNumber+1 {
+					if lighthouseTxs.SlotNumber > s.fetchedTxsSlotNumber+1 {
+						s.lighthouseTxsCh <- lighthouseTxs
+					} else if lighthouseTxs.SlotNumber < s.fetchedTxsSlotNumber+1 {
 						panic("error: incorrect slotNumber: " + "lhSlot: " + strconv.FormatInt(lighthouseTxs.SlotNumber, 10) + " fet: " + strconv.FormatInt(s.fetchedTxsSlotNumber, 10))
+					} else {
+						txs = append(txs, lighthouseTxs.RawTransactions...)
 					}
-					txs = append(txs, lighthouseTxs.RawTransactions...)
 
 				case <-timeout:
 					logger.ColorPrintf(logger.Yellow, "Warning: Timed out waiting for lighthouse transactions for slot %d", s.fetchedTxsSlotNumber+1)
