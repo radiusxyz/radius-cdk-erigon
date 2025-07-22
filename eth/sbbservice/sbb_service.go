@@ -89,8 +89,10 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 	txs := make([][]byte, 0)
 	txs = append(txs, rawTransactions...)
 
+	auctionStarted := false
+
 	for {
-		if s.fetchedTxsSlotNumber > 0 {
+		if auctionStarted {
 			txs = txs[:0]
 			timeout := time.After(5 * time.Second)
 			select {
@@ -120,6 +122,8 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 			err := s.lighthouseWsClient.CreateAuction(s.fetchedTxsSlotNumber+1, s.SlotTime)
 			if err != nil {
 				fmt.Println("failed to create auction, error: ", err.Error())
+			} else {
+				auctionStarted = true
 			}
 		}
 	}
