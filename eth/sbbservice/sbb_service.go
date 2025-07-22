@@ -82,15 +82,16 @@ func (s *SbbService) insertTransactions(ctx context.Context) {
 }
 
 func (s *SbbService) requestToSbb(ctx context.Context) {
-	for {
-		txs := make([][]byte, 0)
-		rawTransactions, err := s.getRawTransactions(ctx)
-		if err != nil {
-			fmt.Println("failed to get raw transactions, error: ", err.Error())
-		}
-		txs = append(txs, rawTransactions...)
+	rawTransactions, err := s.getRawTransactions(ctx)
+	if err != nil {
+		fmt.Println("failed to get raw transactions, error: ", err.Error())
+	}
+	txs := make([][]byte, 0)
+	txs = append(txs, rawTransactions...)
 
+	for {
 		if s.fetchedTxsSlotNumber > 0 {
+			txs = txs[:0]
 			timeout := time.After(5 * time.Second)
 			select {
 			case lighthouseTxs := <-s.lighthouseTxsCh:
@@ -99,8 +100,13 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 				} else if lighthouseTxs.SlotNumber < s.fetchedTxsSlotNumber {
 					logger.ColorPrintf(logger.Yellow, "Warning: Discard LighthouseTx due to LH slotNumber(%d) is too low. current slotNumber(%d)", lighthouseTxs.SlotNumber, s.fetchedTxsSlotNumber+1)
 				} else {
-					txs = append(lighthouseTxs.RawTransactions, txs...)
+					txs = append(txs, lighthouseTxs.RawTransactions...)
 				}
+				rawTransactions, err = s.getRawTransactions(ctx)
+				if err != nil {
+					fmt.Println("failed to get raw transactions, error: ", err.Error())
+				}
+				txs = append(txs, rawTransactions...)
 
 			case <-timeout:
 				logger.ColorPrintf(logger.Yellow, "Warning: Timed out waiting for lighthouse transactions for slot %d", s.fetchedTxsSlotNumber+1)
@@ -111,7 +117,7 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 		s.filter.OnNewSlotTxs(&types.SlotTransactions{SlotNumber: s.fetchedTxsSlotNumber, RawTransactions: txs})
 
 		if s.lighthouseWsClient != nil {
-			err := s.lighthouseWsClient.CreateAuction(s.fetchedTxsSlotNumber+2, s.SlotTime)
+			err := s.lighthouseWsClient.CreateAuction(s.fetchedTxsSlotNumber+1, s.SlotTime)
 			if err != nil {
 				fmt.Println("failed to create auction, error: ", err.Error())
 			}
