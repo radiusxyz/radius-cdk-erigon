@@ -8,7 +8,6 @@ import (
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/crypto"
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
-	"github.com/ledgerwatch/erigon/eth/lighthousewsclient/requests"
 	"github.com/ledgerwatch/erigon/logger"
 	"net/http"
 	"strconv"
@@ -77,21 +76,10 @@ func (l *LighthouseWsClient) Start() {
 	//logger.Printf("rollup(%s) verification message sent", l.RollupId)
 }
 
-func (l *LighthouseWsClient) CreateAuction(slotNumber int64, slotTime uint64) error {
-	auctionStartTimestamp := uint64(time.Now().Unix())
-	createAuctionRequest := &requests.CreateAuctionRequest{
-		RollupId:              l.RollupId,
-		SlotNumber:            slotNumber,
-		SlotTime:              slotTime,
-		AuctionStartTimestamp: auctionStartTimestamp,
-	}
-	requestType := requests.CreateAuction
-	if err := l.handler.SendMessage(requestType, createAuctionRequest); err != nil {
+func (l *LighthouseWsClient) CreateAuction(creatingAuctionSlotNumber int64, slotTime uint64) error {
+	if err := l.handler.CreateAuction(l.RollupId, creatingAuctionSlotNumber, slotTime); err != nil {
 		return err
 	}
-
-	logger.ColorPrintln(logger.BrightCyan, "Sent auction creation message. slotNumber: "+strconv.FormatInt(slotNumber, 10))
-
 	return nil
 }
 

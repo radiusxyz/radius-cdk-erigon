@@ -82,66 +82,39 @@ func (s *SbbService) insertTransactions(ctx context.Context) {
 }
 
 func (s *SbbService) requestToSbb(ctx context.Context) {
-	loopTime := int64(s.SlotTime)
-	timer := time.NewTimer(time.Duration(loopTime) * time.Millisecond)
-
 	for {
-		select {
-		case <-timer.C:
-			startTime := time.Now().UnixMilli()
+		txs := make([][]byte, 0)
+		rawTransactions, err := s.getRawTransactions(ctx)
+		if err != nil {
+			fmt.Println("failed to get raw transactions, error: ", err.Error())
+		}
+		txs = append(txs, rawTransactions...)
 
-			txs := make([][]byte, 0)
-
-			if err := Retry(ctx, func() error {
-				rawTransactions, err := s.getRawTransactions(ctx)
-				if err != nil {
-					fmt.Println("failed to get raw transactions, error: ", err.Error())
-					return err
+		if s.fetchedTxsSlotNumber > 0 {
+			timeout := time.After(5 * time.Second)
+			select {
+			case lighthouseTxs := <-s.lighthouseTxsCh:
+				if lighthouseTxs.SlotNumber > s.fetchedTxsSlotNumber {
+					panic("invalid LH slotNumber: lh: " + strconv.FormatInt(lighthouseTxs.SlotNumber, 10) + " curSlot: " + strconv.FormatInt(s.fetchedTxsSlotNumber, 10))
+				} else if lighthouseTxs.SlotNumber < s.fetchedTxsSlotNumber {
+					logger.ColorPrintf(logger.Yellow, "Warning: Discard LighthouseTx due to LH slotNumber(%d) is too low. current slotNumber(%d)", lighthouseTxs.SlotNumber, s.fetchedTxsSlotNumber+1)
+				} else {
+					txs = append(lighthouseTxs.RawTransactions, txs...)
 				}
-				txs = append(txs, rawTransactions...)
-				return nil
-			}, 100*time.Millisecond); err != nil {
-				fmt.Printf("getRawTransactions error: %v", err)
-				timer.Reset(100 * time.Millisecond)
-				break
+
+			case <-timeout:
+				logger.ColorPrintf(logger.Yellow, "Warning: Timed out waiting for lighthouse transactions for slot %d", s.fetchedTxsSlotNumber+1)
 			}
+		}
 
-			if s.lighthouseWsClient != nil && s.fetchedTxsSlotNumber > 0 {
-				timeout := time.After(5 * time.Second)
-				select {
-				case lighthouseTxs := <-s.lighthouseTxsCh:
-					if lighthouseTxs.SlotNumber > s.fetchedTxsSlotNumber {
-						panic("invalid LH slotNumber: lh: " + strconv.FormatInt(lighthouseTxs.SlotNumber, 10) + " curSlot: " + strconv.FormatInt(s.fetchedTxsSlotNumber, 10))
-					} else if lighthouseTxs.SlotNumber < s.fetchedTxsSlotNumber {
-						logger.ColorPrintf(logger.Yellow, "Warning: Discard LighthouseTx due to LH slotNumber(%d) is too low. current slotNumber(%d)", lighthouseTxs.SlotNumber, s.fetchedTxsSlotNumber+1)
-					} else {
-						txs = append(lighthouseTxs.RawTransactions, txs...)
-					}
+		s.slotTransactionsCh <- &SlotTransactions{transactions: txs}
+		s.filter.OnNewSlotTxs(&types.SlotTransactions{SlotNumber: s.fetchedTxsSlotNumber, RawTransactions: txs})
 
-				case <-timeout:
-					logger.ColorPrintf(logger.Yellow, "Warning: Timed out waiting for lighthouse transactions for slot %d", s.fetchedTxsSlotNumber+1)
-				}
+		if s.lighthouseWsClient != nil {
+			err := s.lighthouseWsClient.CreateAuction(s.fetchedTxsSlotNumber+1, s.SlotTime)
+			if err != nil {
+				fmt.Println("failed to create auction, error: ", err.Error())
 			}
-
-			s.slotTransactionsCh <- &SlotTransactions{transactions: txs}
-			s.filter.OnNewSlotTxs(&types.SlotTransactions{SlotNumber: s.fetchedTxsSlotNumber, RawTransactions: txs})
-
-			if s.lighthouseWsClient != nil {
-				err := s.lighthouseWsClient.CreateAuction(s.fetchedTxsSlotNumber+1, s.SlotTime)
-				if err != nil {
-					fmt.Println("failed to create auction, error: ", err.Error())
-				}
-			}
-
-			endTime := time.Now().UnixMilli()
-			duration := endTime - startTime
-			if loopTime-duration > 0 {
-				timer.Reset(time.Duration(loopTime-duration) * time.Millisecond)
-			} else {
-				timer.Reset(0)
-			}
-		case <-ctx.Done():
-			return
 		}
 	}
 }

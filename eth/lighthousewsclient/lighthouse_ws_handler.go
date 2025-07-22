@@ -10,6 +10,9 @@ import (
 	"github.com/ledgerwatch/erigon/eth/lighthousewsclient/requests"
 	"github.com/ledgerwatch/erigon/eth/lighthousewsclient/responses"
 	"github.com/ledgerwatch/erigon/logger"
+	"strconv"
+	"sync"
+	"time"
 )
 
 type BaseMessage struct {
@@ -18,8 +21,10 @@ type BaseMessage struct {
 }
 
 type LighthouseMessageHandler struct {
-	serverConn      *websocket.Conn
-	lighthouseTxsCh chan *common.LighthouseTransactions
+	serverConn                 *websocket.Conn
+	lighthouseTxsCh            chan *common.LighthouseTransactions
+	auctionCreatedSlotNumber   int64
+	auctionCreatedSlotNumberMu sync.RWMutex
 }
 
 func NewLighthouseMessageHandler(serverConn *websocket.Conn, lighthouseTxsCh chan *common.LighthouseTransactions) *LighthouseMessageHandler {
@@ -27,6 +32,29 @@ func NewLighthouseMessageHandler(serverConn *websocket.Conn, lighthouseTxsCh cha
 		serverConn:      serverConn,
 		lighthouseTxsCh: lighthouseTxsCh,
 	}
+}
+
+func (l *LighthouseMessageHandler) CreateAuction(rollupId string, creatingAuctionSlotNumber int64, slotTime uint64) error {
+	l.auctionCreatedSlotNumberMu.Lock()
+	defer l.auctionCreatedSlotNumberMu.Unlock()
+
+	auctionStartTimestamp := uint64(time.Now().Unix())
+	createAuctionRequest := &requests.CreateAuctionRequest{
+		RollupId:              rollupId,
+		SlotNumber:            creatingAuctionSlotNumber,
+		SlotTime:              slotTime,
+		AuctionStartTimestamp: auctionStartTimestamp,
+	}
+	requestType := requests.CreateAuction
+	if err := l.SendMessage(requestType, createAuctionRequest); err != nil {
+		return err
+	}
+
+	l.auctionCreatedSlotNumber = creatingAuctionSlotNumber
+
+	logger.ColorPrintln(logger.BrightCyan, "Sent auction creation message. slotNumber: "+strconv.FormatInt(l.auctionCreatedSlotNumber, 10))
+
+	return nil
 }
 
 func (l *LighthouseMessageHandler) ResetConn(conn *websocket.Conn) {
@@ -44,7 +72,15 @@ func (l *LighthouseMessageHandler) handleAuctionCreatedResponse(res *responses.A
 }
 
 func (l *LighthouseMessageHandler) handleAuctionClosedEvent(event *events.AuctionClosedEvent) error {
-	logger.ColorPrintln(logger.Cyan, "Successfully auction closed. auctionId: "+*event.AuctionId)
+	l.auctionCreatedSlotNumberMu.RLock()
+	defer l.auctionCreatedSlotNumberMu.RUnlock()
+
+	if *event.SlotNumber != l.auctionCreatedSlotNumber {
+		logger.ColorPrintf(logger.Yellow, "Warning: Discarded AuctionClosedEvent for slot %d because it's from a past auction. Current processing slot: %d", event.SlotNumber, l.auctionCreatedSlotNumber)
+	} else {
+		logger.ColorPrintln(logger.Cyan, "Successfully auction closed. auctionId: "+*event.AuctionId)
+	}
+
 	l.lighthouseTxsCh <- &common.LighthouseTransactions{
 		SlotNumber:      *event.SlotNumber,
 		RawTransactions: event.RawTransactions,
