@@ -111,7 +111,7 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 		s.filter.OnNewSlotTxs(&types.SlotTransactions{SlotNumber: s.fetchedTxsSlotNumber, RawTransactions: txs})
 
 		if s.lighthouseWsClient != nil {
-			err := s.lighthouseWsClient.CreateAuction(s.fetchedTxsSlotNumber+1, s.SlotTime)
+			err := s.lighthouseWsClient.CreateAuction(s.fetchedTxsSlotNumber+2, s.SlotTime)
 			if err != nil {
 				fmt.Println("failed to create auction, error: ", err.Error())
 			}
