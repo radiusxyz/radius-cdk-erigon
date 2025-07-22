@@ -97,9 +97,9 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 			timeout := time.After(5 * time.Second)
 			select {
 			case lighthouseTxs := <-s.lighthouseTxsCh:
-				if lighthouseTxs.SlotNumber > s.fetchedTxsSlotNumber {
-					panic("invalid LH slotNumber: lh: " + strconv.FormatInt(lighthouseTxs.SlotNumber, 10) + " curSlot: " + strconv.FormatInt(s.fetchedTxsSlotNumber, 10))
-				} else if lighthouseTxs.SlotNumber < s.fetchedTxsSlotNumber {
+				if lighthouseTxs.SlotNumber > s.fetchedTxsSlotNumber+1 {
+					panic("invalid LH slotNumber: lh: " + strconv.FormatInt(lighthouseTxs.SlotNumber, 10) + " curSlot: " + strconv.FormatInt(s.fetchedTxsSlotNumber+1, 10))
+				} else if lighthouseTxs.SlotNumber < s.fetchedTxsSlotNumber+1 {
 					logger.ColorPrintf(logger.Yellow, "Warning: Discard LighthouseTx due to LH slotNumber(%d) is too low. current slotNumber(%d)", lighthouseTxs.SlotNumber, s.fetchedTxsSlotNumber+1)
 				} else {
 					txs = append(txs, lighthouseTxs.RawTransactions...)
@@ -115,6 +115,8 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 			}
 			txs = append(txs, rawTransactions...)
 		}
+
+		s.fetchedTxsSlotNumber += 1
 
 		s.slotTransactionsCh <- &SlotTransactions{transactions: txs}
 		s.filter.OnNewSlotTxs(&types.SlotTransactions{SlotNumber: s.fetchedTxsSlotNumber, RawTransactions: txs})
@@ -157,8 +159,6 @@ func (s *SbbService) getRawTransactions(ctx context.Context) ([][]byte, error) {
 		}
 		encodedTxs = append(encodedTxs, binary)
 	}
-
-	s.fetchedTxsSlotNumber += 1
 
 	logger.ColorPrintln(logger.Green, "Transaction processing succeeded. tx count: "+strconv.Itoa(len(res.RawTransactions))+" slot number: "+strconv.FormatInt(s.fetchedTxsSlotNumber, 10))
 
