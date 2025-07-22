@@ -82,13 +82,7 @@ func (s *SbbService) insertTransactions(ctx context.Context) {
 }
 
 func (s *SbbService) requestToSbb(ctx context.Context) {
-	rawTransactions, err := s.getRawTransactions(ctx)
-	if err != nil {
-		fmt.Println("failed to get raw transactions, error: ", err.Error())
-	}
 	txs := make([][]byte, 0)
-	txs = append(txs, rawTransactions...)
-
 	auctionStarted := false
 
 	for {
@@ -109,7 +103,7 @@ func (s *SbbService) requestToSbb(ctx context.Context) {
 				logger.ColorPrintf(logger.Yellow, "Warning: Timed out waiting for lighthouse transactions for slot %d", s.slotNumber)
 			}
 
-			rawTransactions, err = s.getRawTransactions(ctx)
+			rawTransactions, err := s.getRawTransactions(ctx)
 			if err != nil {
 				fmt.Println("failed to get raw transactions, error: ", err.Error())
 			}
