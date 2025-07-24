@@ -215,6 +215,8 @@ func (r DiscardReason) String() string {
 		return "smart contract deployment disabled"
 	case GasLimitTooHigh:
 		return fmt.Sprintf("gas limit too high. Max: %d", transactionGasLimit)
+	case MissedPendingTx:
+		return "missed pending tx"
 	default:
 		panic(fmt.Sprintf("discard reason: %d", r))
 	}
