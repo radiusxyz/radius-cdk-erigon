@@ -78,7 +78,7 @@ func (l *LighthouseMessageHandler) handleAuctionClosedEvent(event *events.Auctio
 	if *event.SlotNumber != l.auctionCreatedSlotNumber {
 		logger.ColorPrintf(logger.Yellow, "Warning: Discarded AuctionClosedEvent for slot %d because it's from a past auction. Current processing slot: %d", event.SlotNumber, l.auctionCreatedSlotNumber)
 	} else {
-		logger.ColorPrintln(logger.Cyan, "Successfully auction closed. auctionId: "+*event.AuctionId)
+		logger.ColorPrintf(logger.Cyan, "Successfully auction closed. auctionId(%s) txCount(%d)", *event.AuctionId, len(event.RawTransactions))
 	}
 
 	l.lighthouseTxsCh <- &common.LighthouseTransactions{
