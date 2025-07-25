@@ -2,7 +2,6 @@ package stages
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -453,49 +452,48 @@ func sequencingBatchStep(
 				// The copying of this structure is intentional
 				backupDataSizeChecker := *blockDataSizeChecker
 				receipt, execResult, txCounters, anyOverflow, err := attemptAddTransaction(cfg, sdb, ibs, batchCounters, &blockContext, header, transaction, effectiveGas, batchState.isL1Recovery(), batchState.forkId, l1TreeUpdateIndex, &backupDataSizeChecker, ethBlockGasPool)
-				if receipt.Status == 0 {
-					if removeErr := cfg.txPool.RemoveInvalidTransactions([]common.Hash{receipt.TxHash}); removeErr != nil {
-						panic("fail to remove invalid transactions")
-					}
-				}
 
 				if err != nil {
 					if batchState.isLimboRecovery() {
 						panic("limbo transaction has already been executed once so they must not fail while re-executing")
 					}
 
-					if batchState.isResequence() {
-						if cfg.zk.SequencerResequenceStrict {
-							return fmt.Errorf("strict mode enabled, but resequenced batch %d failed to add transaction %s: %v", batchState.batchNumber, txHash, err)
-						} else {
-							log.Warn(fmt.Sprintf("[%s] error adding transaction to batch during resequence: %v", logPrefix, err),
-								"hash", txHash,
-								"to", transaction.GetTo(),
-							)
-							continue
-						}
+					if removeErr := cfg.txPool.RemoveInvalidTransactions([]common.Hash{receipt.TxHash}); removeErr != nil {
+						panic("fail to remove invalid transactions")
 					}
 
-					// if we are in recovery just log the error as a warning.  If the data is on the L1 then we should consider it as confirmed.
-					// The executor/prover would simply skip a TX with an invalid nonce for example so we don't need to worry about that here.
-					if batchState.isL1Recovery() {
-						log.Warn(fmt.Sprintf("[%s] error adding transaction to batch during recovery: %v", logPrefix, err),
-							"hash", txHash,
-							"to", transaction.GetTo(),
-						)
-						continue
-					}
-
-					if errors.Is(err, core.ErrNonceTooHigh) || errors.Is(err, core.ErrNonceTooLow) {
-						// here we have a case where some situation has caused a nonce issue to find its way into the pending pool
-						// we want to skip transactions for this sender in this batch for now and ask the pool to trigger a sender
-						// state change for this sender.  This will cause the pool to skip any transactions from this sender until
-						// the sender's nonce is corrected in the pending pool
-						log.Info(fmt.Sprintf("[%s] nonce issue detected for sender, skipping transactions for now", logPrefix), "sender", txSender.Hex(), "nonceIssue", err)
-						sendersToSkip[txSender] = struct{}{}
-						sendersToTriggerStatechanges[txSender] = struct{}{}
-						continue
-					}
+					//if batchState.isResequence() {
+					//	if cfg.zk.SequencerResequenceStrict {
+					//		return fmt.Errorf("strict mode enabled, but resequenced batch %d failed to add transaction %s: %v", batchState.batchNumber, txHash, err)
+					//	} else {
+					//		log.Warn(fmt.Sprintf("[%s] error adding transaction to batch during resequence: %v", logPrefix, err),
+					//			"hash", txHash,
+					//			"to", transaction.GetTo(),
+					//		)
+					//		continue
+					//	}
+					//}
+					//
+					//// if we are in recovery just log the error as a warning.  If the data is on the L1 then we should consider it as confirmed.
+					//// The executor/prover would simply skip a TX with an invalid nonce for example so we don't need to worry about that here.
+					//if batchState.isL1Recovery() {
+					//	log.Warn(fmt.Sprintf("[%s] error adding transaction to batch during recovery: %v", logPrefix, err),
+					//		"hash", txHash,
+					//		"to", transaction.GetTo(),
+					//	)
+					//	continue
+					//}
+					//
+					//if errors.Is(err, core.ErrNonceTooHigh) || errors.Is(err, core.ErrNonceTooLow) {
+					//	// here we have a case where some situation has caused a nonce issue to find its way into the pending pool
+					//	// we want to skip transactions for this sender in this batch for now and ask the pool to trigger a sender
+					//	// state change for this sender.  This will cause the pool to skip any transactions from this sender until
+					//	// the sender's nonce is corrected in the pending pool
+					//	log.Info(fmt.Sprintf("[%s] nonce issue detected for sender, skipping transactions for now", logPrefix), "sender", txSender.Hex(), "nonceIssue", err)
+					//	sendersToSkip[txSender] = struct{}{}
+					//	sendersToTriggerStatechanges[txSender] = struct{}{}
+					//	continue
+					//}
 
 					// if we have an error at this point something has gone wrong, either in the pool or otherwise
 					// to stop the pool growing and hampering further processing of good transactions here
