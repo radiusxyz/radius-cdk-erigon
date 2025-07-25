@@ -1423,19 +1423,25 @@ func promote(pending *PendingPool, baseFee, queued *SubPool, pendingBaseFee uint
 
 func promoteForRadius(pending *PendingPool, baseFee, queued *SubPool, pendingBaseFee uint64, discard func(*metaTx, DiscardReason), announcements *types.Announcements) {
 	// Demote worst transactions that do not qualify for pending sub pool anymore, to other sub pools, or discard
-	//for worst := pending.Worst(); pending.Len() > 0 && (worst.subPool < BaseFeePoolBits || worst.minFeeCap.Cmp(uint256.NewInt(pendingBaseFee)) < 0); worst = pending.Worst() {
-	//	if worst.subPool >= BaseFeePoolBits {
-	//		tx := pending.PopWorst()
-	//		announcements.Append(tx.Tx.Type, tx.Tx.Size, tx.Tx.IDHash[:])
-	//		//baseFee.Add(tx)
-	//		discard(tx, MissedPendingTx)
-	//	} else if worst.subPool >= QueuedPoolBits {
-	//		//queued.Add(pending.PopWorst())
-	//		discard(pending.PopWorst(), MissedPendingTx)
-	//	} else {
-	//		discard(pending.PopWorst(), FeeTooLow)
-	//	}
-	//}
+	for worst := pending.Best(); pending.Len() > 0; worst = pending.Best() {
+		if worst.subPool < BaseFeePoolBits || worst.minFeeCap.Cmp(uint256.NewInt(pendingBaseFee)) < 0 {
+			tx := pending.PopWorst()
+			announcements.Append(tx.Tx.Type, tx.Tx.Size, tx.Tx.IDHash[:])
+			//baseFee.Add(tx)
+			discard(tx, MissedPendingTx)
+		}
+		//if worst.subPool >= BaseFeePoolBits {
+		//	tx := pending.PopWorst()
+		//	announcements.Append(tx.Tx.Type, tx.Tx.Size, tx.Tx.IDHash[:])
+		//	//baseFee.Add(tx)
+		//	discard(tx, MissedPendingTx)
+		//} else if worst.subPool >= QueuedPoolBits {
+		//	//queued.Add(pending.PopWorst())
+		//	discard(pending.PopWorst(), MissedPendingTx)
+		//} else {
+		//	discard(pending.PopWorst(), FeeTooLow)
+		//}
+	}
 
 	// Promote best transactions from the queued pool to either pending or base fee pool, while they qualify
 	for best := queued.Best(); queued.Len() > 0; best = queued.Best() {
@@ -2543,6 +2549,18 @@ func (mt *metaTx) better(than *metaTx, pendingBaseFee uint256.Int) bool {
 }
 
 func (mt *metaTx) worse(than *metaTx, pendingBaseFee uint256.Int) bool {
+	subPool := mt.subPool
+	thanSubPool := than.subPool
+	if mt.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
+		subPool |= EnoughFeeCapBlock
+	}
+	if than.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
+		thanSubPool |= EnoughFeeCapBlock
+	}
+	if subPool != thanSubPool {
+		return subPool < thanSubPool
+	}
+
 	if mt.seq != nil {
 		if mt.created != than.created {
 			return mt.created > than.created
@@ -2552,18 +2570,6 @@ func (mt *metaTx) worse(than *metaTx, pendingBaseFee uint256.Int) bool {
 		}
 		return mt.nonceDistance > than.nonceDistance
 	} else {
-		subPool := mt.subPool
-		thanSubPool := than.subPool
-		if mt.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
-			subPool |= EnoughFeeCapBlock
-		}
-		if than.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
-			thanSubPool |= EnoughFeeCapBlock
-		}
-		if subPool != thanSubPool {
-			return subPool < thanSubPool
-		}
-
 		switch mt.currentSubPool {
 		case PendingSubPool:
 			if mt.minFeeCap != than.minFeeCap {
