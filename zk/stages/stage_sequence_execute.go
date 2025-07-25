@@ -491,6 +491,7 @@ func sequencingBatchStep(
 						sendersToSkip[txSender] = struct{}{}
 						sendersToTriggerStatechanges[txSender] = struct{}{}
 
+						//이거 지워도될듯 디스카드에다들어있어서
 						if removeErr := cfg.txPool.RemoveInvalidTransactions([]common.Hash{receipt.TxHash}); removeErr != nil {
 							logger.ColorPrintln(logger.BgCyan, "fail to remove invalid transactions")
 						}
@@ -504,6 +505,8 @@ func sequencingBatchStep(
 					log.Warn(fmt.Sprintf("[%s] error adding transaction to batch, discarding from pool", logPrefix), "hash", txHash, "err", err)
 					badTxHashes = append(badTxHashes, txHash)
 					batchState.blockState.transactionsToDiscard = append(batchState.blockState.transactionsToDiscard, batchState.blockState.transactionHashesToSlots[txHash])
+
+					continue
 				}
 
 				switch anyOverflow {
