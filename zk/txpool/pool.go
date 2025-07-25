@@ -24,6 +24,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/ledgerwatch/erigon/logger"
 	"math"
 	"math/big"
 	"runtime"
@@ -977,6 +978,10 @@ func (p *TxPool) AddLocalTxs(ctx context.Context, newTransactions types.TxSlots,
 	}
 
 	reasons, newTxs, err := p.validateTxs(&newTransactions, cacheView)
+	for _, r := range reasons {
+		fmt.Println("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr")
+		logger.ColorPrintf(logger.BgGreen, "reason(%s)", r.String())
+	}
 	if err != nil {
 		return nil, err
 	}
