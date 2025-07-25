@@ -280,6 +280,33 @@ func (p *TxPool) MarkForDiscardFromPendingBest(txHash common.Hash) {
 	}
 }
 
+func (p *TxPool) RemoveInvalidTransactions(ids []common.Hash) error {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	toDelete := make([]*metaTx, 0)
+
+	p.all.ascendAll(func(mt *metaTx) bool {
+		for _, id := range ids {
+			if bytes.Equal(mt.Tx.IDHash[:], id[:]) {
+				toDelete = append(toDelete, mt)
+				switch mt.currentSubPool {
+				case PendingSubPool:
+					p.pending.Remove(mt)
+				case BaseFeeSubPool:
+					p.baseFee.Remove(mt)
+				case QueuedSubPool:
+					p.queued.Remove(mt)
+				default:
+					//already removed
+				}
+			}
+		}
+		return true
+	})
+	return nil
+}
+
 func (p *TxPool) RemoveMinedTransactions(ctx context.Context, tx kv.Tx, blockGasLimit uint64, ids []common.Hash) error {
 	cache := p.cache()
 

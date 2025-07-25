@@ -458,6 +458,10 @@ func sequencingBatchStep(
 						panic("limbo transaction has already been executed once so they must not fail while re-executing")
 					}
 
+					if err = cfg.txPool.RemoveInvalidTransactions([]common.Hash{receipt.TxHash}); err != nil {
+						panic("fail to remove invalid transactions")
+					}
+
 					if batchState.isResequence() {
 						if cfg.zk.SequencerResequenceStrict {
 							return fmt.Errorf("strict mode enabled, but resequenced batch %d failed to add transaction %s: %v", batchState.batchNumber, txHash, err)
