@@ -1445,7 +1445,7 @@ func promoteForRadius(pending *PendingPool, baseFee, queued *SubPool, pendingBas
 			pending.Add(tx)
 		} else {
 			//baseFee.Add(queued.PopBest())
-			discard(queued.PopWorst(), MissedPendingTx)
+			discard(queued.PopBest(), MissedPendingTx)
 		}
 	}
 
