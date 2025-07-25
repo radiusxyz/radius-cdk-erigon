@@ -3,6 +3,7 @@ package stages
 import (
 	"context"
 	"fmt"
+	"github.com/ledgerwatch/erigon/logger"
 	"time"
 
 	"github.com/ledgerwatch/erigon-lib/common"
@@ -453,15 +454,13 @@ func sequencingBatchStep(
 				backupDataSizeChecker := *blockDataSizeChecker
 				receipt, execResult, txCounters, anyOverflow, err := attemptAddTransaction(cfg, sdb, ibs, batchCounters, &blockContext, header, transaction, effectiveGas, batchState.isL1Recovery(), batchState.forkId, l1TreeUpdateIndex, &backupDataSizeChecker, ethBlockGasPool)
 
-				panic("aaaaaaaaaaaaaaaaaaa")
-
 				if err != nil {
 					if batchState.isLimboRecovery() {
 						panic("limbo transaction has already been executed once so they must not fail while re-executing")
 					}
 
 					if removeErr := cfg.txPool.RemoveInvalidTransactions([]common.Hash{receipt.TxHash}); removeErr != nil {
-						panic("fail to remove invalid transactions")
+						logger.ColorPrintln(logger.BgCyan, "fail to remove invalid transactions")
 					}
 
 					//if batchState.isResequence() {
