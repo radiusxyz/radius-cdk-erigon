@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ledgerwatch/erigon/logger"
 	"time"
 
 	"github.com/ledgerwatch/erigon-lib/common"
@@ -454,12 +455,6 @@ func sequencingBatchStep(
 				backupDataSizeChecker := *blockDataSizeChecker
 				receipt, execResult, txCounters, anyOverflow, err := attemptAddTransaction(cfg, sdb, ibs, batchCounters, &blockContext, header, transaction, effectiveGas, batchState.isL1Recovery(), batchState.forkId, l1TreeUpdateIndex, &backupDataSizeChecker, ethBlockGasPool)
 
-				//if receipt.Status == 0 {
-				//	if removeErr := cfg.txPool.RemoveInvalidTransactions([]common.Hash{receipt.TxHash}); removeErr != nil {
-				//		logger.ColorPrintln(logger.BgCyan, "fail to remove invalid transactions")
-				//	}
-				//}
-
 				if err != nil {
 					if batchState.isLimboRecovery() {
 						panic("limbo transaction has already been executed once so they must not fail while re-executing")
@@ -495,7 +490,12 @@ func sequencingBatchStep(
 						log.Info(fmt.Sprintf("[%s] nonce issue detected for sender, skipping transactions for now", logPrefix), "sender", txSender.Hex(), "nonceIssue", err)
 						sendersToSkip[txSender] = struct{}{}
 						sendersToTriggerStatechanges[txSender] = struct{}{}
-						continue
+
+						if removeErr := cfg.txPool.RemoveInvalidTransactions([]common.Hash{receipt.TxHash}); removeErr != nil {
+							logger.ColorPrintln(logger.BgCyan, "fail to remove invalid transactions")
+						}
+
+						//continue
 					}
 
 					// if we have an error at this point something has gone wrong, either in the pool or otherwise
