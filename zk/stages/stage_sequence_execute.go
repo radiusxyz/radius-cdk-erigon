@@ -2,8 +2,8 @@ package stages
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"github.com/ledgerwatch/erigon/logger"
 	"time"
 
 	"github.com/ledgerwatch/erigon-lib/common"
@@ -454,13 +454,15 @@ func sequencingBatchStep(
 				backupDataSizeChecker := *blockDataSizeChecker
 				receipt, execResult, txCounters, anyOverflow, err := attemptAddTransaction(cfg, sdb, ibs, batchCounters, &blockContext, header, transaction, effectiveGas, batchState.isL1Recovery(), batchState.forkId, l1TreeUpdateIndex, &backupDataSizeChecker, ethBlockGasPool)
 
+				//if receipt.Status == 0 {
+				//	if removeErr := cfg.txPool.RemoveInvalidTransactions([]common.Hash{receipt.TxHash}); removeErr != nil {
+				//		logger.ColorPrintln(logger.BgCyan, "fail to remove invalid transactions")
+				//	}
+				//}
+
 				if err != nil {
 					if batchState.isLimboRecovery() {
 						panic("limbo transaction has already been executed once so they must not fail while re-executing")
-					}
-
-					if removeErr := cfg.txPool.RemoveInvalidTransactions([]common.Hash{receipt.TxHash}); removeErr != nil {
-						logger.ColorPrintln(logger.BgCyan, "fail to remove invalid transactions")
 					}
 
 					//if batchState.isResequence() {
@@ -485,16 +487,16 @@ func sequencingBatchStep(
 					//	continue
 					//}
 					//
-					//if errors.Is(err, core.ErrNonceTooHigh) || errors.Is(err, core.ErrNonceTooLow) {
-					//	// here we have a case where some situation has caused a nonce issue to find its way into the pending pool
-					//	// we want to skip transactions for this sender in this batch for now and ask the pool to trigger a sender
-					//	// state change for this sender.  This will cause the pool to skip any transactions from this sender until
-					//	// the sender's nonce is corrected in the pending pool
-					//	log.Info(fmt.Sprintf("[%s] nonce issue detected for sender, skipping transactions for now", logPrefix), "sender", txSender.Hex(), "nonceIssue", err)
-					//	sendersToSkip[txSender] = struct{}{}
-					//	sendersToTriggerStatechanges[txSender] = struct{}{}
-					//	continue
-					//}
+					if errors.Is(err, core.ErrNonceTooHigh) || errors.Is(err, core.ErrNonceTooLow) {
+						// here we have a case where some situation has caused a nonce issue to find its way into the pending pool
+						// we want to skip transactions for this sender in this batch for now and ask the pool to trigger a sender
+						// state change for this sender.  This will cause the pool to skip any transactions from this sender until
+						// the sender's nonce is corrected in the pending pool
+						log.Info(fmt.Sprintf("[%s] nonce issue detected for sender, skipping transactions for now", logPrefix), "sender", txSender.Hex(), "nonceIssue", err)
+						sendersToSkip[txSender] = struct{}{}
+						sendersToTriggerStatechanges[txSender] = struct{}{}
+						continue
+					}
 
 					// if we have an error at this point something has gone wrong, either in the pool or otherwise
 					// to stop the pool growing and hampering further processing of good transactions here
