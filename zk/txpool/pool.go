@@ -1439,6 +1439,7 @@ func promoteForRadius(pending *PendingPool, baseFee, queued *SubPool, pendingBas
 
 	// Promote best transactions from the queued pool to either pending or base fee pool, while they qualify
 	for best := queued.Best(); queued.Len() > 0; best = queued.Best() {
+		logger.ColorPrintf(logger.BgCyan, "gasPrice: %d", pendingBaseFee)
 		if best.subPool >= BaseFeePoolBits && best.minFeeCap.Cmp(uint256.NewInt(pendingBaseFee)) >= 0 {
 			tx := queued.PopBest()
 			announcements.Append(tx.Tx.Type, tx.Tx.Size, tx.Tx.IDHash[:])
