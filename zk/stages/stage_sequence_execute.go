@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ledgerwatch/erigon/logger"
 	"time"
 
 	"github.com/ledgerwatch/erigon-lib/common"
@@ -492,9 +491,9 @@ func sequencingBatchStep(
 						sendersToTriggerStatechanges[txSender] = struct{}{}
 
 						//이거 지워도될듯 디스카드에다들어있어서
-						if removeErr := cfg.txPool.RemoveInvalidTransactions([]common.Hash{receipt.TxHash}); removeErr != nil {
-							logger.ColorPrintln(logger.BgCyan, "fail to remove invalid transactions")
-						}
+						//if removeErr := cfg.txPool.RemoveInvalidTransactions([]common.Hash{receipt.TxHash}); removeErr != nil {
+						//	logger.ColorPrintln(logger.BgCyan, "fail to remove invalid transactions")
+						//}
 
 						//continue
 					}
