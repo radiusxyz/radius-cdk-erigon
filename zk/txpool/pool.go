@@ -774,7 +774,7 @@ func (p *TxPool) validateTx(txn *types.TxSlot, isLocal bool, stateCache kvcache.
 	}
 
 	if !isLocal && uint64(p.all.count(txn.SenderID)) > p.cfg.AccountSlots {
-		logger.ColorPrintf(logger.BgGreen, "spammer(%s)", reason.String())
+		logger.ColorPrintf(logger.BgGreen, "youngmin spammera(%s)", reason.String())
 		if txn.Traced {
 			log.Info(fmt.Sprintf("TX TRACING: validateTx marked as spamming idHash=%x slots=%d, limit=%d", txn.IDHash, p.all.count(txn.SenderID), p.cfg.AccountSlots))
 		}
@@ -900,7 +900,7 @@ func (p *TxPool) validateTxs(txs *types.TxSlots, stateCache kvcache.CacheView) (
 			continue
 		}
 		if reason == Spammer {
-			logger.ColorPrintf(logger.BgGreen, "reason(%s)", reason.String())
+			logger.ColorPrintf(logger.BgGreen, "youngmin spammerb(%s)", reason.String())
 			p.punishSpammer(txn.SenderID)
 		}
 		reasons[i] = reason
@@ -932,7 +932,7 @@ func (p *TxPool) punishSpammer(spammer uint64) {
 			return count > 0
 		})
 		for _, mt := range txsToDelete {
-			logger.ColorPrintf(logger.BgGreen, "youngmin")
+			logger.ColorPrintf(logger.BgGreen, "youngmin spammerc")
 			p.discardLocked(mt, Spammer) // can't call it while iterating by all
 		}
 	}
