@@ -453,13 +453,15 @@ func sequencingBatchStep(
 				// The copying of this structure is intentional
 				backupDataSizeChecker := *blockDataSizeChecker
 				receipt, execResult, txCounters, anyOverflow, err := attemptAddTransaction(cfg, sdb, ibs, batchCounters, &blockContext, header, transaction, effectiveGas, batchState.isL1Recovery(), batchState.forkId, l1TreeUpdateIndex, &backupDataSizeChecker, ethBlockGasPool)
+				if receipt.Status == 0 {
+					if removeErr := cfg.txPool.RemoveInvalidTransactions([]common.Hash{receipt.TxHash}); removeErr != nil {
+						panic("fail to remove invalid transactions")
+					}
+				}
+
 				if err != nil {
 					if batchState.isLimboRecovery() {
 						panic("limbo transaction has already been executed once so they must not fail while re-executing")
-					}
-
-					if err = cfg.txPool.RemoveInvalidTransactions([]common.Hash{receipt.TxHash}); err != nil {
-						panic("fail to remove invalid transactions")
 					}
 
 					if batchState.isResequence() {
