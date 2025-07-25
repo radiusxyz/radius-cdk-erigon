@@ -978,16 +978,16 @@ func (p *TxPool) AddLocalTxs(ctx context.Context, newTransactions types.TxSlots,
 	}
 
 	reasons, newTxs, err := p.validateTxs(&newTransactions, cacheView)
-	for _, r := range reasons {
-		fmt.Println("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr")
-		logger.ColorPrintf(logger.BgGreen, "reason(%s)", r.String())
-	}
 	if err != nil {
 		return nil, err
 	}
 
 	announcements, addReasons, err := p.addTxs(p.lastSeenBlock.Load(), cacheView, p.senders, newTxs,
 		p.pendingBaseFee.Load(), p.blockGasLimit.Load(), p.pending, p.baseFee, p.queued, p.all, p.byHash, p.addLocked, p.discardLocked, true)
+	for _, r := range reasons {
+		fmt.Println("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr")
+		logger.ColorPrintf(logger.BgGreen, "reason(%s)", r.String())
+	}
 	if err == nil {
 		for i, reason := range addReasons {
 			if reason != NotSet {
