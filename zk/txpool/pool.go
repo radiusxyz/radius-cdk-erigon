@@ -1095,11 +1095,11 @@ func (p *TxPool) addTxs(blockNum uint64, cacheView kvcache.CacheView, senders *s
 			protocolBaseFee, blockGasLimit, pending, baseFee, queued, discard)
 	}
 
-	if p.mode == "original" {
-		promote(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
-	} else {
-		promoteForRadius(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
-	}
+	//if p.mode == "original" {
+	//	promote(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
+	//} else {
+	//	promoteForRadius(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
+	//}
 
 	return announcements, discardReasons, nil
 }
@@ -1196,11 +1196,11 @@ func (p *TxPool) addTxsOnNewBlock(
 			protocolBaseFee, blockGasLimit, pending, baseFee, queued, discard)
 	}
 
-	if p.mode == "original" {
-		promote(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
-	} else {
-		promoteForRadius(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
-	}
+	//if p.mode == "original" {
+	//	promote(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
+	//} else {
+	//	promoteForRadius(pending, baseFee, queued, pendingBaseFee, discard, &announcements)
+	//}
 
 	return announcements, nil
 }
@@ -1281,7 +1281,8 @@ func (p *TxPool) addLocked(mt *metaTx, announcements *types.Announcements) Disca
 		p.isLocalLRU.Add(string(mt.Tx.IDHash[:]), struct{}{})
 	}
 	// All transactions are first added to the queued pool and then immediately promoted from there if required
-	p.queued.Add(mt)
+	//p.queued.Add(mt)
+	p.pending.Add(mt)
 	return NotSet
 }
 
@@ -1428,6 +1429,7 @@ func promoteForRadius(pending *PendingPool, baseFee, queued *SubPool, pendingBas
 			tx := pending.PopWorst()
 			announcements.Append(tx.Tx.Type, tx.Tx.Size, tx.Tx.IDHash[:])
 			//baseFee.Add(tx)
+			logger.Println(logger.BgYellow, "missedPendingTx11111")
 			discard(tx, MissedPendingTx)
 		}
 		//if worst.subPool >= BaseFeePoolBits {
@@ -1452,7 +1454,7 @@ func promoteForRadius(pending *PendingPool, baseFee, queued *SubPool, pendingBas
 			pending.Add(tx)
 		} else {
 			//baseFee.Add(queued.PopBest())
-			logger.Println(logger.BgYellow, "missedPendingTx")
+			logger.Println(logger.BgYellow, "missedPendingTx22222")
 			discard(queued.PopBest(), MissedPendingTx)
 		}
 	}
