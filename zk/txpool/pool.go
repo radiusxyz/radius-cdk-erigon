@@ -1445,6 +1445,7 @@ func promoteForRadius(pending *PendingPool, baseFee, queued *SubPool, pendingBas
 			pending.Add(tx)
 		} else {
 			//baseFee.Add(queued.PopBest())
+			logger.Println(logger.BgYellow, "missedPendingTx")
 			discard(queued.PopBest(), MissedPendingTx)
 		}
 	}
@@ -2468,6 +2469,15 @@ type BestQueue struct {
 }
 
 func (mt *metaTx) better(than *metaTx, pendingBaseFee uint256.Int) bool {
+	subPool := mt.subPool
+	thanSubPool := than.subPool
+	if mt.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
+		subPool |= EnoughFeeCapBlock
+	}
+	if than.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
+		thanSubPool |= EnoughFeeCapBlock
+	}
+
 	if mt.seq != nil {
 		if mt.created != than.created {
 			return mt.created < than.created
@@ -2477,14 +2487,6 @@ func (mt *metaTx) better(than *metaTx, pendingBaseFee uint256.Int) bool {
 		}
 		return mt.nonceDistance < than.nonceDistance
 	} else {
-		subPool := mt.subPool
-		thanSubPool := than.subPool
-		if mt.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
-			subPool |= EnoughFeeCapBlock
-		}
-		if than.minFeeCap.Cmp(&pendingBaseFee) >= 0 {
-			thanSubPool |= EnoughFeeCapBlock
-		}
 		if subPool != thanSubPool {
 			return subPool > thanSubPool
 		}
