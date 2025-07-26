@@ -991,6 +991,7 @@ func (p *TxPool) AddLocalTxs(ctx context.Context, newTransactions types.TxSlots,
 	if err == nil {
 		for i, reason := range addReasons {
 			if reason != NotSet {
+				logger.ColorPrintln(logger.BgYellow, "youngmin qqq: "+reason.String())
 				reasons[i] = reason
 			}
 		}
@@ -1059,6 +1060,7 @@ func (p *TxPool) addTxs(blockNum uint64, cacheView kvcache.CacheView, senders *s
 	for i, txn := range newTxs.Txs {
 		if found, ok := byHash[string(txn.IDHash[:])]; ok {
 			discardReasons[i] = DuplicateHash
+			logger.ColorPrintln(logger.BgYellow, "youngmin dup")
 			// In case if the transation is stuck, "poke" it to rebroadcast
 			if collect && newTxs.IsLocal[i] && (found.currentSubPool == PendingSubPool || found.currentSubPool == BaseFeeSubPool) {
 				announcements.Append(found.Tx.Type, found.Tx.Size, found.Tx.IDHash[:])
@@ -1074,6 +1076,7 @@ func (p *TxPool) addTxs(blockNum uint64, cacheView kvcache.CacheView, senders *s
 		}
 
 		if reason := add(mt, &announcements); reason != NotSet {
+			logger.ColorPrintln(logger.BgYellow, "youngmin www: "+reason.String())
 			discardReasons[i] = reason
 			continue
 		}

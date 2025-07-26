@@ -229,18 +229,9 @@ func (api *APIImpl) NewSlotTransactions(ctx context.Context) (*rpc.Subscription,
 		for {
 			select {
 			case slotTxs, ok := <-slotTxsCh:
-				//for _, t := range txs {
-				//	if t != nil {
-				//		err := notifier.Notify(rpcSub.ID, t)
-				//		if err != nil {
-				//			log.Warn("[rpc] error while notifying subscription", "err", err)
-				//		}
-				//	}
-				//}
 				message, err := json.Marshal(slotTxs)
 				if err != nil {
-					log.Warn("[rpc] error while marshaling Bob transactions", "err", err)
-					return
+					log.Warn("[rpc] error while marshaling slot transactions", "err", err)
 				}
 
 				err = notifier.Notify(rpcSub.ID, message)
@@ -249,7 +240,7 @@ func (api *APIImpl) NewSlotTransactions(ctx context.Context) (*rpc.Subscription,
 				}
 
 				if !ok {
-					log.Warn("[rpc] new bob transactions channel was closed")
+					log.Warn("[rpc] new slot transactions channel was closed")
 					return
 				}
 			case <-rpcSub.Err():
