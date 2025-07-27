@@ -774,7 +774,6 @@ func (p *TxPool) validateTx(txn *types.TxSlot, isLocal bool, stateCache kvcache.
 	}
 
 	if !isLocal && uint64(p.all.count(txn.SenderID)) > p.cfg.AccountSlots {
-		logger.ColorPrintf(logger.BgGreen, "youngmin spammera(%s)", reason.String())
 		if txn.Traced {
 			log.Info(fmt.Sprintf("TX TRACING: validateTx marked as spamming idHash=%x slots=%d, limit=%d", txn.IDHash, p.all.count(txn.SenderID), p.cfg.AccountSlots))
 		}
@@ -900,7 +899,6 @@ func (p *TxPool) validateTxs(txs *types.TxSlots, stateCache kvcache.CacheView) (
 			continue
 		}
 		if reason == Spammer {
-			logger.ColorPrintf(logger.BgGreen, "youngmin spammerb(%s)", reason.String())
 			p.punishSpammer(txn.SenderID)
 		}
 		reasons[i] = reason
@@ -922,7 +920,6 @@ func (p *TxPool) validateTxs(txs *types.TxSlots, stateCache kvcache.CacheView) (
 
 // punishSpammer by drop half of it's transactions with high nonce
 func (p *TxPool) punishSpammer(spammer uint64) {
-	logger.ColorPrintf(logger.BgGreen, "youngmin")
 	count := p.all.count(spammer) / 2
 	if count > 0 {
 		txsToDelete := make([]*metaTx, 0, count)
@@ -932,7 +929,6 @@ func (p *TxPool) punishSpammer(spammer uint64) {
 			return count > 0
 		})
 		for _, mt := range txsToDelete {
-			logger.ColorPrintf(logger.BgGreen, "youngmin spammerc")
 			p.discardLocked(mt, Spammer) // can't call it while iterating by all
 		}
 	}
@@ -991,7 +987,6 @@ func (p *TxPool) AddLocalTxs(ctx context.Context, newTransactions types.TxSlots,
 	if err == nil {
 		for i, reason := range addReasons {
 			if reason != NotSet {
-				logger.ColorPrintln(logger.BgYellow, "youngmin qqq: "+reason.String())
 				reasons[i] = reason
 			}
 		}
@@ -1003,13 +998,14 @@ func (p *TxPool) AddLocalTxs(ctx context.Context, newTransactions types.TxSlots,
 
 	reasons = fillDiscardReasons(reasons, newTxs, p.discardReasonsLRU)
 	for i, reason := range reasons {
-		logger.ColorPrintf(logger.BgGreen, "reason(%s)", reason.String())
 		if reason == Success {
 			txn := newTxs.Txs[i]
 			if txn.Traced {
 				log.Info(fmt.Sprintf("TX TRACING: AddLocalTxs promotes idHash=%x, senderId=%d", txn.IDHash, txn.SenderID))
 			}
 			p.promoted.Append(txn.Type, txn.Size, txn.IDHash[:])
+		} else {
+			logger.ColorPrintf(logger.BgGreen, "discard reason(%s) txHash(%x)", reason.String(), newTxs.Txs[i].IDHash)
 		}
 	}
 	if p.promoted.Len() > 0 {
@@ -1060,7 +1056,6 @@ func (p *TxPool) addTxs(blockNum uint64, cacheView kvcache.CacheView, senders *s
 	for i, txn := range newTxs.Txs {
 		if found, ok := byHash[string(txn.IDHash[:])]; ok {
 			discardReasons[i] = DuplicateHash
-			logger.ColorPrintln(logger.BgYellow, "youngmin dup")
 			// In case if the transation is stuck, "poke" it to rebroadcast
 			if collect && newTxs.IsLocal[i] && (found.currentSubPool == PendingSubPool || found.currentSubPool == BaseFeeSubPool) {
 				announcements.Append(found.Tx.Type, found.Tx.Size, found.Tx.IDHash[:])
@@ -1076,7 +1071,6 @@ func (p *TxPool) addTxs(blockNum uint64, cacheView kvcache.CacheView, senders *s
 		}
 
 		if reason := add(mt, &announcements); reason != NotSet {
-			logger.ColorPrintln(logger.BgYellow, "youngmin www: "+reason.String())
 			discardReasons[i] = reason
 			continue
 		}

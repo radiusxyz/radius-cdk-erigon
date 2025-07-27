@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ledgerwatch/erigon/logger"
 	"math"
 	"net"
 	"sync"
@@ -203,12 +202,10 @@ func (s *GrpcServer) Add(ctx context.Context, in *txpool_proto.AddRequest) (*txp
 
 		if _, err := parseCtx.ParseTransaction(in.RlpTxs[i], 0, txSlot, senderSlice, false /* hasEnvelope */, false, func(hash []byte) error {
 			if known, _ := s.txPool.IdHashKnown(tx, hash); known {
-				logger.ColorPrintln(logger.BgYellow, "youngmin known")
 				return types.ErrAlreadyKnown
 			}
 			return nil
 		}); err != nil {
-			logger.ColorPrintln(logger.BgYellow, "youngmin aa : "+err.Error())
 			if errors.Is(err, types.ErrAlreadyKnown) { // Noop, but need to handle to not count these
 				reply.Errors[i] = AlreadyKnown.String()
 				reply.Imported[i] = txpool_proto.ImportResult_ALREADY_EXISTS
