@@ -889,7 +889,7 @@ var (
 	RpcLogsMaxRange = cli.Uint64Flag{
 		Name:  "rpc.logs.maxrange",
 		Usage: "Maximum range of logs that can be requested in a single call",
-		Value: 1000,
+		Value: 100000000,
 	}
 	HTTPTraceFlag = cli.BoolFlag{
 		Name:  "http.trace",
