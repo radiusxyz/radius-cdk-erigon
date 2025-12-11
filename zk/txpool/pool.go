@@ -2526,8 +2526,10 @@ func (mt *metaTx) better(than *metaTx, pendingBaseFee uint256.Int) bool {
 			return mt.minFeeCap.Cmp(&than.minFeeCap) > 0
 		}
 	case QueuedSubPool:
-		if mt.nonceDistance != than.nonceDistance {
-			return mt.nonceDistance < than.nonceDistance
+		if mt.Tx.SenderID == than.Tx.SenderID {
+			if mt.nonceDistance != than.nonceDistance {
+				return mt.nonceDistance < than.nonceDistance
+			}
 		}
 		if mt.cumulativeBalanceDistance != than.cumulativeBalanceDistance {
 			return mt.cumulativeBalanceDistance < than.cumulativeBalanceDistance
@@ -2563,8 +2565,10 @@ func (mt *metaTx) worse(than *metaTx, pendingBaseFee uint256.Int) bool {
 			return mt.cumulativeBalanceDistance > than.cumulativeBalanceDistance
 		}
 	case BaseFeeSubPool, QueuedSubPool:
-		if mt.nonceDistance != than.nonceDistance {
-			return mt.nonceDistance > than.nonceDistance
+		if mt.Tx.SenderID == than.Tx.SenderID {
+			if mt.nonceDistance != than.nonceDistance {
+				return mt.nonceDistance > than.nonceDistance
+			}
 		}
 		if mt.cumulativeBalanceDistance != than.cumulativeBalanceDistance {
 			return mt.cumulativeBalanceDistance > than.cumulativeBalanceDistance
