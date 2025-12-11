@@ -2512,9 +2512,12 @@ func (mt *metaTx) better(than *metaTx, pendingBaseFee uint256.Int) bool {
 		// matter if they're from same sender or not because we're comparing
 		// nonce distance of the sender from state's nonce and not the actual
 		// value of nonce.
-		if mt.nonceDistance != than.nonceDistance {
-			return mt.nonceDistance < than.nonceDistance
+		if mt.Tx.SenderID == than.Tx.SenderID {
+			if mt.nonceDistance != than.nonceDistance {
+				return mt.nonceDistance < than.nonceDistance
+			}
 		}
+
 		if mt.cumulativeBalanceDistance != than.cumulativeBalanceDistance {
 			return mt.cumulativeBalanceDistance < than.cumulativeBalanceDistance
 		}
@@ -2551,8 +2554,10 @@ func (mt *metaTx) worse(than *metaTx, pendingBaseFee uint256.Int) bool {
 		if mt.minFeeCap != than.minFeeCap {
 			return mt.minFeeCap.Cmp(&than.minFeeCap) < 0
 		}
-		if mt.nonceDistance != than.nonceDistance {
-			return mt.nonceDistance > than.nonceDistance
+		if mt.Tx.SenderID == than.Tx.SenderID {
+			if mt.nonceDistance != than.nonceDistance {
+				return mt.nonceDistance > than.nonceDistance
+			}
 		}
 		if mt.cumulativeBalanceDistance != than.cumulativeBalanceDistance {
 			return mt.cumulativeBalanceDistance > than.cumulativeBalanceDistance
