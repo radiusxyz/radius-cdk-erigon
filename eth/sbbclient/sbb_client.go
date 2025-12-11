@@ -380,7 +380,20 @@ func (s *SbbClient) getRawTransactions(ctx context.Context, txOrdererRpcUrls []s
 			}
 
 			// 3. Sender Recovery (Config 의존성 제거)
-			sender, _ := tx.GetSender()
+			//sender,  := tx.GetSender()
+
+			chainID := big.NewInt(10101) // 반드시 실제 체인 ID 입력!
+			signer := types.LatestSignerForChainID(chainID)
+
+			sender, err := signer.Sender(tx) // <= 여기!
+			if err != nil {
+				log.Error("failed to recover sender from tx",
+					"index", idx,
+					"err", err,
+					"nonce", tx.GetNonce(),
+				)
+				//return nil, fmt.Errorf("failed to recover sender at index %d: %w", idx, err)
+			}
 
 			// 4. 정보 저장
 			parsedTxs[idx] = &txInfo{
