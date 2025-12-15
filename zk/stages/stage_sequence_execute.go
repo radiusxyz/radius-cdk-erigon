@@ -2,7 +2,6 @@ package stages
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -501,16 +500,16 @@ func sequencingBatchStep(
 						continue
 					}
 
-					if errors.Is(err, core.ErrNonceTooHigh) || errors.Is(err, core.ErrNonceTooLow) {
-						// here we have a case where some situation has caused a nonce issue to find its way into the pending pool
-						// we want to skip transactions for this sender in this batch for now and ask the pool to trigger a sender
-						// state change for this sender.  This will cause the pool to skip any transactions from this sender until
-						// the sender's nonce is corrected in the pending pool
-						log.Info(fmt.Sprintf("[%s] nonce issue detected for sender, skipping transactions for now", logPrefix), "sender", txSender.Hex(), "nonceIssue", err)
-						sendersToSkip[txSender] = struct{}{}
-						sendersToTriggerStatechanges[txSender] = struct{}{}
-						continue
-					}
+					//if errors.Is(err, core.ErrNonceTooHigh) || errors.Is(err, core.ErrNonceTooLow) {
+					//	// here we have a case where some situation has caused a nonce issue to find its way into the pending pool
+					//	// we want to skip transactions for this sender in this batch for now and ask the pool to trigger a sender
+					//	// state change for this sender.  This will cause the pool to skip any transactions from this sender until
+					//	// the sender's nonce is corrected in the pending pool
+					//	log.Info(fmt.Sprintf("[%s] nonce issue detected for sender, skipping transactions for now", logPrefix), "sender", txSender.Hex(), "nonceIssue", err)
+					//	sendersToSkip[txSender] = struct{}{}
+					//	sendersToTriggerStatechanges[txSender] = struct{}{}
+					//	continue
+					//}
 
 					// if we have an error at this point something has gone wrong, either in the pool or otherwise
 					// to stop the pool growing and hampering further processing of good transactions here
